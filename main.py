@@ -23,6 +23,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Step 1: Ask for poll type (public or anonymous)."""
 
     reply_keyboard = [["Public", "Anonymous"]]
+    context.user_data["poll"] = Poll()
+    logger.info(repr(context.user_data["poll"]))
 
     await update.message.reply_text(
         "Hi, let's create a custom poll! First, select the poll type:",
@@ -36,9 +38,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_anonimity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Step 2: Store poll anonimity and ask about forwarding."""
 
-    poll_anonimity = True if update.message.text == 'Anonymous' else False
-    context.user_data["poll_anonimity"] = poll_anonimity
-    logger.info("Poll anonimity: %s", poll_anonimity)
+    poll = context.user_data["poll"]
+    poll.anonimity = True if update.message.text == 'Anonymous' else False
+    logger.info("Poll anonimity: %s", poll.anonimity)
 
     reply_keyboard = [["Yes", "No"]]
     await update.message.reply_text(
@@ -52,9 +54,9 @@ async def set_anonimity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def set_forwarding(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Step 3: Store the forwarding setting and ask about vote limits."""
 
-    poll_forwarding = False if update.message.text == 'Yes' else True
-    context.user_data["poll_forwarding"] = poll_forwarding
-    logger.info("Poll forwarding: %s", poll_forwarding)
+    poll = context.user_data["poll"]
+    poll.forwarding = False if update.message.text == 'Yes' else True
+    logger.info("Disable poll forwarding: %s", poll.forwarding)
 
     await update.message.reply_text(
         "Send the max number of voters. If you don't want to set a limit, send /skip",
@@ -64,9 +66,10 @@ async def set_forwarding(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:   
     """Step 4: Store the vote limits."""
-    poll_limit = update.message.text
-    context.user_data["poll_limit"] = poll_limit
-    logger.info("Poll limit %s:", poll_limit)
+
+    poll = context.user_data["poll"]
+    poll.limit = int(update.message.text)
+    logger.info("Poll limit: %s", poll.limit)
 
     return await ask_for_question(update, context)
 
@@ -74,7 +77,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def skip_limit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Step 4: Skip setting the vote limits."""
 
-    context.user_data["poll_limit"] = "Unlimited"
     logger.info("User didn't set a vote limit")
     
     return await ask_for_question(update, context)
@@ -91,9 +93,9 @@ async def ask_for_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def set_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Step 5: Store the poll question and ask for an option."""
 
-    poll_question = update.message.text
-    context.user_data["poll_question"] = poll_question
-    logger.info("Poll question is %s", poll_question)
+    poll = context.user_data["poll"]
+    poll.question = update.message.text
+    logger.info("Poll question is %s", poll.question)
 
     await update.message.reply_text("Now, send me a poll option.")   
 
@@ -102,9 +104,12 @@ async def set_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def set_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Step 6: Store the poll option and ask for another one."""
+    
+    poll = context.user_data["poll"]
     poll_option = update.message.text
-    context.user_data.setdefault("poll_options", []).append(poll_option)
-    logger.info("Poll option is '%s'. Here are all options: ", poll_option)
+    poll.options.append(poll_option)
+    logger.info("Poll option is '%s'", poll_option)
+    logger.info("All poll options:", poll.options)
     
     await update.message.reply_text("Send me another option or type /done if finished.")
 
@@ -113,19 +118,13 @@ async def set_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Final Step: Confirm poll creation and end conversation."""
-    anonimity = context.user_data.get("poll_anonimity")
-    forwarding = context.user_data.get("poll_forwarding")
-    limit = context.user_data.get("poll_limit")
-    question = context.user_data.get("poll_question")
-    options = context.user_data.get("poll_options")  
-
-    # Create the poll object
-    poll = Poll(anonimity, forwarding, limit, question, options)
+    
+    poll = context.user_data["poll"]
+    await update.message.reply_text("You are all set! ✅ Your poll has been created.")
 
     # Send the poll
     await poll.send_poll(update, context)
-    
-    await update.message.reply_text("You are all set! ✅ Your poll has been created.")   
+       
     return ConversationHandler.END
     
 
@@ -136,6 +135,14 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")    
+
+
+async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Listens to poll answer updates""" 
+    poll = context.user_data.get("poll")
+    if poll:
+        await poll.receive_poll_answer(update, context)
+
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(telegram_token).build()
@@ -160,7 +167,7 @@ if __name__ == '__main__':
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     application.add_handler(unknown_handler)    
 
-    '''application.add_handler(PollAnswerHandler(poll.receive_poll_answer))
-    application.add_handler(CommandHandler("poll_results", poll.get_poll_results))'''
+    application.add_handler(PollAnswerHandler(handle_poll_answer))
+    #application.add_handler(CommandHandler("poll_results", poll.get_poll_results))'''
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
