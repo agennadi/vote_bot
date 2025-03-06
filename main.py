@@ -109,7 +109,7 @@ async def set_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     poll_option = update.message.text
     poll.options.append(poll_option)
     logger.info("Poll option is '%s'", poll_option)
-    logger.info("All poll options:", poll.options)
+    logger.info("All poll options: %s", poll.options)
     
     await update.message.reply_text("Send me another option or type /done if finished.")
 
@@ -139,9 +139,12 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Listens to poll answer updates""" 
+    logger.info("Poll answer received: %s", update.poll_answer)
     poll = context.user_data.get("poll")
     if poll:
         await poll.receive_poll_answer(update, context)
+    else:
+        logger.warning("Poll object not found in user data")
 
 
 if __name__ == '__main__':
