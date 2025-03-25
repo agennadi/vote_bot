@@ -1,6 +1,6 @@
 import logging
 from telegram import Update, ReplyKeyboardMarkup, Poll, ReplyKeyboardRemove
-from telegram.ext import filters, ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, ConversationHandler, PollAnswerHandler, PollHandler
+from telegram.ext import filters, ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, ConversationHandler, PollAnswerHandler, PollHandler, CallbackContext, InlineQueryHandler
 import os
 from dotenv import load_dotenv
 from poll import Poll
@@ -18,6 +18,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 ANONIMITY, FORWARDING, LIMIT, QUESTION, OPTIONS, END = range(6)
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Step 1: Ask for poll type (public or anonymous)."""
@@ -130,12 +131,22 @@ async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Notifies the user when the bot doesn't recognize their input."""
-    await update.message.reply_text("Sorry, I didn't understand that. Please try again.")
+    await update.message.reply_text("Sorry, I didn't understand that. Please try again.")    
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Cancels the conversation."""
+    logger.info("User canceled the poll creation")
+    
+    if "poll" in context.user_data:
+        del context.user_data["poll"]
+    
+    await update.message.reply_text("Poll creation canceled.")
 
-async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")    
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("This bot creates customizable polls. You can set poll visibility, duration, and vote limits.\n\n- Use /start to create a poll here, then forward it to chats.\n\n- If you want to disable poll forwarding, add the bot to the group of people who are allowed to vote and create the poll inside the group.\n\n- Send /polls to manage your existing polls.")     
 
+async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    pass
 
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Listens to poll answer updates""" 
@@ -145,6 +156,9 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await poll.receive_poll_answer(update, context)
     else:
         logger.warning("Poll object not found in user data")
+
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
 
 
 if __name__ == '__main__':
@@ -164,13 +178,18 @@ if __name__ == '__main__':
         },
         fallbacks=[MessageHandler(filters.TEXT & ~filters.COMMAND, fallback)],
     )
+    # Inline query handler for inline mode
+    inline_query_handler = InlineQueryHandler(handle_inline_query)
+    cancel_handler = CommandHandler("cancel", cancel)
+    help_handler = CommandHandler("help", help)
+    unknown_handler = MessageHandler(filters.COMMAND, unknown)    
 
     application.add_handler(conv_handler)
-
-    unknown_handler = MessageHandler(filters.COMMAND, unknown)
-    application.add_handler(unknown_handler)    
-
+    application.add_handler(inline_query_handler)
+    application.add_handler(cancel_handler)   
+    application.add_handler(help_handler)
     application.add_handler(PollAnswerHandler(handle_poll_answer))
+    application.add_handler(unknown_handler)      
     #application.add_handler(CommandHandler("poll_results", poll.get_poll_results))'''
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)

@@ -64,6 +64,12 @@ class Poll:
             protect_content=self.forwarding
         )
 
+        logger.info(f"message: {update.effective_chat.id}") #id=251096562
+
+        chat_id = update.effective_chat.id
+        user_id = update.message.from_user.id
+        logger.info(f"chat id: {chat_id}")
+        logger.info(f"type of chat_id and user_id: {type(chat_id)}, {type(user_id)}")
         self.id = message.poll.id
 
         # Save some info about the poll the bot_data for later use in receive_poll_answer
@@ -72,7 +78,7 @@ class Poll:
                 "question": self.question,
                 "options": self.options,
                 "message_id": message.message_id,
-                "chat_id": update.effective_chat.id,
+                "chat_id": chat_id,
                 "answer_num": 0,
                 "votes": {}
             }
@@ -87,9 +93,9 @@ class Poll:
             try:
                 # Insert poll
                 cursor.execute("""
-                INSERT INTO polls (poll_id, anonimity, forwarding, "limit", question, expiration_date, answer_num, closed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (self.id, self.anonimity, self.forwarding, self.limit, self.question, self.expiration_date, self.answer_num, self.closed))
+                INSERT INTO polls (poll_id, user_id, chat_id, anonimity, forwarding, "limit", question, expiration_date, answer_num, closed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (self.id, user_id, chat_id, self.anonimity, self.forwarding, self.limit, self.question, self.expiration_date, self.answer_num, self.closed))
                 
                 # Insert poll options
                 for option in self.options:
@@ -174,16 +180,6 @@ class Poll:
             except Exception as e:
                 logger.error("Unexpected error while updating poll: %s", e)
                 conn.rollback()                
-
-
-    async def publish_poll(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Inline button to choose where to publish the poll"""
-        keyboard = [
-            [InlineKeyboardButton("Publish poll", switch_inline_query="Choose chat for poll")],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await update.message.reply_text("Where do you want to publish this poll?", reply_markup=reply_markup)      
 
 
     async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

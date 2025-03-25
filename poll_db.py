@@ -17,6 +17,8 @@ def setup_database():
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS polls (
                 poll_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                chat_id INTEGER,
                 anonimity BOOLEAN NOT NULL,
                 forwarding BOOLEAN NOT NULL,
                 "limit" INTEGER NOT NULL,

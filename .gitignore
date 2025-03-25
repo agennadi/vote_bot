@@ -1,5 +1,5 @@
 venv
 .vscode
 .env
-__pycache__
+/pycache/*
 polls.db 
