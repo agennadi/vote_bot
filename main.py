@@ -4,6 +4,8 @@ from telegram.ext import filters, ApplicationBuilder, ContextTypes, CommandHandl
 import os
 from dotenv import load_dotenv
 from poll import Poll
+from handlers.error_handler import error_handler
+from telegram.error import BadRequest
     
 load_dotenv()
 
@@ -111,21 +113,26 @@ async def set_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     poll.options.append(poll_option)
     logger.info("Poll option is '%s'", poll_option)
     logger.info("All poll options: %s", poll.options)
-    
-    await update.message.reply_text("Send me another option or type /done if finished.")
+
+    if len(poll.options) < 2:
+        await update.message.reply_text("Please enter another option - polls must have at least 2 options.")
+    else:
+        await update.message.reply_text("Send me another option or type /done if finished.")
 
     return OPTIONS  # Stay in this step until the user is done
+    
 
-
-async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> input:
     """Final Step: Confirm poll creation and end conversation."""
     
     poll = context.user_data["poll"]
-    await update.message.reply_text("You are all set! ✅ Your poll has been created.")
-
-    # Send the poll
-    await poll.send_poll(update, context)
-       
+    try:
+        await poll.send_poll(update, context)
+        logger.info("Poll sent successfully")
+        await update.message.reply_text("You are all set! ✅ Your poll has been created.")
+    except BadRequest as e:
+        logger.error("Failed to send poll: %s", e)
+        await update.message.reply_text("❌ Failed to create the poll. Please check your input and try again.")
     return ConversationHandler.END
     
 
@@ -133,14 +140,18 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Notifies the user when the bot doesn't recognize their input."""
     await update.message.reply_text("Sorry, I didn't understand that. Please try again.")    
 
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels the conversation."""
     logger.info("User canceled the poll creation")
     
     if "poll" in context.user_data:
         del context.user_data["poll"]
-    
-    await update.message.reply_text("Poll creation canceled.")
+        await update.message.reply_text("Poll creation canceled.")
+    else:
+        await update.message.reply_text("There is nothing to cancel yet. Use /start to create a new poll.")
+    return ConversationHandler.END
+
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("This bot creates customizable polls. You can set poll visibility, duration, and vote limits.\n\n- Use /start to create a poll here, then forward it to chats.\n\n- If you want to disable poll forwarding, add the bot to the group of people who are allowed to vote and create the poll inside the group.\n\n- Send /polls to manage your existing polls.")     
@@ -176,14 +187,15 @@ if __name__ == '__main__':
                 CommandHandler("done", end),  # User sends /done to finish
             ],        
         },
-        fallbacks=[MessageHandler(filters.TEXT & ~filters.COMMAND, fallback)],
+        fallbacks=[MessageHandler(filters.TEXT & ~filters.COMMAND, fallback), CommandHandler("start", start)],
     )
-    # Inline query handler for inline mode
+
     inline_query_handler = InlineQueryHandler(handle_inline_query)
     cancel_handler = CommandHandler("cancel", cancel)
     help_handler = CommandHandler("help", help)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)    
 
+    application.add_error_handler(error_handler)
     application.add_handler(conv_handler)
     application.add_handler(inline_query_handler)
     application.add_handler(cancel_handler)   
