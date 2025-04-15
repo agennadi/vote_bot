@@ -3,9 +3,12 @@ from telegram import Update, ReplyKeyboardMarkup, Poll, ReplyKeyboardRemove
 from telegram.ext import filters, ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, ConversationHandler, PollAnswerHandler, PollHandler, CallbackContext, InlineQueryHandler
 import os
 from dotenv import load_dotenv
-from poll import Poll
+from states import ANONIMITY, FORWARDING, LIMIT, QUESTION, OPTIONS
+from models.poll import Poll
 from handlers.error_handler import error_handler
+from handlers.help_handler import help_handler
 from telegram.error import BadRequest
+
     
 load_dotenv()
 
@@ -18,8 +21,6 @@ logging.basicConfig(
 # set higher logging level for httpx to avoid all GET and POST requests being logged
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
-
-ANONIMITY, FORWARDING, LIMIT, QUESTION, OPTIONS, END = range(6)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -153,9 +154,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("This bot creates customizable polls. You can set poll visibility, duration, and vote limits.\n\n- Use /start to create a poll here, then forward it to chats.\n\n- If you want to disable poll forwarding, add the bot to the group of people who are allowed to vote and create the poll inside the group.\n\n- Send /polls to manage your existing polls.")     
-
 async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pass
 
@@ -192,7 +190,6 @@ if __name__ == '__main__':
 
     inline_query_handler = InlineQueryHandler(handle_inline_query)
     cancel_handler = CommandHandler("cancel", cancel)
-    help_handler = CommandHandler("help", help)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)    
 
     application.add_error_handler(error_handler)
