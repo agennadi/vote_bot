@@ -7,12 +7,12 @@ load_dotenv()
 polls_db = os.getenv("POLLS_DB")
 
 # Connect to the SQLite database
-conn = sqlite3.connect(polls_db)  # Replace with your actual database file
+conn = sqlite3.connect(polls_db) 
 cursor = conn.cursor()
 
 print("polls:")
-# Execute a query to select data from a table
-cursor.execute("SELECT * FROM polls")  # Example query to select all columns from 'polls' table
+# Execute a query to select data from the table
+cursor.execute("SELECT * FROM polls") 
 
 # Fetch all results (you can also use fetchone() or fetchmany())
 rows = cursor.fetchall()

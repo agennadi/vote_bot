@@ -8,7 +8,7 @@ from models.poll import Poll
 from handlers.error_handler import error_handler
 from handlers.help_handler import help_handler
 from telegram.error import BadRequest
-
+from database.poll_repository import PollRepository
     
 load_dotenv()
 
