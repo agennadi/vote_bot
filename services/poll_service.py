@@ -30,7 +30,7 @@ class PollService:
         )
 
         # Update poll with Telegram ID
-         poll.id = message.poll.id
+        poll.id = message.poll.id
 
         # Extract user info
         chat_id = update.effective_chat.id
@@ -84,12 +84,21 @@ class PollService:
         logger.info("Context bot data: %s", context.bot_data[poll_id])
 
         # Check if poll should close after the limit of answers has been reached
-        if poll_data["answer_num"] >= self.limit:
+        if poll_data["answer_num"] >= poll.limit:
             await poll._close_poll(poll, poll_data, context)            
             poll.closed = True
 
         # Save to database
-        self.poll_repository.record_poll_answer(poll_id, user_id, selected_options, poll.closed)
+        self.poll_repository.record_poll_answer(poll, user_id, selected_options, poll.closed)
+
+
+    async def retract_vote(self, poll: Poll, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Removes the votes when user clicks 'retract vote'"""
+        
+        answer = update.poll_answer
+        poll_id = answer.poll_id      
+        user_id = answer.user.id  # User who voted    
+        self.poll_repository.remove_vote(poll_id, user_id)
 
 
     async def _close_poll(self, poll: Poll, poll_data: dict, context: ContextTypes.DEFAULT_TYPE) -> None:

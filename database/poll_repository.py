@@ -40,33 +40,27 @@ class PollRepository:
                 conn.rollback()              
 
                 
-        def record_poll_answer(self, poll: Poll, user_id: int, selected_options: list[int], is_closed: False):
+    def record_poll_answer(self, poll: Poll, user_id: int, selected_options: list[int], is_closed: False):
         with sqlite3.connect(self.db) as conn:
             cursor = conn.cursor()
-
             try:    
                 for selected_option in selected_options:
                     selected_option = poll.options[selected_option]
                     logger.info("poll_id: %s, selected_option: %s, user.id: %s", poll.id, selected_option, user_id)
-                    
                     # Find the option ID
                     cursor.execute("SELECT id FROM poll_options WHERE poll_id = ? AND option_text = ?", (poll.id, selected_option))
                     option_id = cursor.fetchone()
                     logger.info("option_id: %s", option_id[0])
-
                     # Update votes
                     cursor.execute("""INSERT INTO votes (poll_id, user_id, option_id)
                     VALUES (?, ?, ?);""",(poll.id, user_id, option_id[0]))    
-
-
                 # Update poll
                 cursor.execute("""
                     UPDATE polls
                     SET answer_num = answer_num + 1, 
                         closed = ?
                     WHERE poll_id = ?;
-                """, (poll.is_closed, poll.id))
-
+                """, (is_closed, poll.id))
                 conn.commit()              
                 logger.info("Updated the database row for poll %s", poll.id)  
             except sqlite3.IntegrityError as e:
@@ -79,6 +73,17 @@ class PollRepository:
                 logger.error("Unexpected error while updating poll: %s", e)
                 conn.rollback()                                  
 
+    def remove_vote(self, poll_id: str, user_id: int):
+        with sqlite3.connect(self.db) as conn:
+            cursor = conn.cursor()
+            # Count how many votes the user had
+            cursor.execute("SELECT COUNT(*) FROM votes WHERE poll_id = ? AND user_id = ?", (poll_id, user_id))
+            num_votes = cursor.fetchone()[0]
+            # Delete all votes for this user and poll
+            cursor.execute("DELETE FROM votes WHERE poll_id = ? AND user_id = ?", (poll_id, user_id))
+            # Decrement the answer_num by the number of votes removed
+            cursor.execute("UPDATE polls SET answer_num = answer_num - ? WHERE poll_id = ?", (num_votes, poll_id))            
+            conn.commit()
 
     def get_polls_by_user(self, poll_id: str) -> list[Poll]:
         pass 
@@ -94,6 +99,7 @@ class PollRepository:
 
     def delete_poll(self, poll_id: str) -> None:
         """Deletes a poll and all related data (cascade delete)"""
+        #TODO: add cascade delete for poll_options and votes
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
@@ -108,7 +114,7 @@ class PollRepository:
                 raise
 
     
-    def get_poll_results(self, poll_id): str -> dict:
+    def get_poll_results(self, poll_id: str) -> dict:
         pass
 
     

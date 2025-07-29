@@ -1,5 +1,7 @@
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+import sys
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -17,7 +19,7 @@ class Poll:
     limit: int=sys.maxsize
     question: str=''
     options: list[str]=field(default_factory=list)
-    expiration_date: datetime=(default_factory=lambda: datetime.now() + timedelta(weeks=1)) 
+    expiration_date: datetime=field(default_factory=lambda: datetime.now() + timedelta(weeks=1)) 
     answer_num: int=0
     votes: dict=field(default_factory=dict)
     closed: bool=False
