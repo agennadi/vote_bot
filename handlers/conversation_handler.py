@@ -1,12 +1,11 @@
 import logging
-from telegram.ext import CommandHandler, MessageHandler, filters, ConversationHandler
+from telegram.ext import CommandHandler, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 from models.poll import Poll
 from states import ANONIMITY, FORWARDING, LIMIT, QUESTION, OPTIONS
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
-from services.poll_service import PollService
-from database.poll_repository import PollRepository
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,46 +19,46 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Step 1: Ask for poll type (public or anonymous)."""
 
-    reply_keyboard = [["Public", "Anonymous"]]
+    reply_keyboard = [[InlineKeyboardButton("Public", callback_data="Public"), InlineKeyboardButton(
+        "Anonymous", callback_data="Anonymous")]]
     context.user_data["poll"] = Poll()
     logger.info(repr(context.user_data["poll"]))
 
     await update.message.reply_text(
         "Hi, let's create a custom poll! First, select the poll type:",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, one_time_keyboard=True, input_field_placeholder="Should the poll be public or anonymous?"),
+        reply_markup=InlineKeyboardMarkup(reply_keyboard),
     )
 
     return ANONIMITY
 
 
-async def set_anonimity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Step 2: Store poll anonimity and ask about forwarding."""
-
+async def poll_type_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Step 2: Store poll anonimity and ask about forwarding."""    
+    query = update.callback_query
+    await query.answer()
     poll = context.user_data["poll"]
-    poll.anonimity = True if update.message.text == 'Anonymous' else False
+    poll.anonimity = True if query.data == "Anonymous" else False
     logger.info("Poll anonimity: %s", poll.anonimity)
 
-    reply_keyboard = [["Yes", "No"]]
-    await update.message.reply_text(
+    reply_keyboard = [[InlineKeyboardButton(
+        "Yes", callback_data="Yes"), InlineKeyboardButton("No", callback_data="No")]]
+    await query.edit_message_text(
         "Do you allow forwarding the poll to other chats?",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, one_time_keyboard=True, input_field_placeholder="Do you allow poll forwarding?"),
+        reply_markup=InlineKeyboardMarkup(reply_keyboard)
     )
-
     return FORWARDING
 
 
-async def set_forwarding(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Step 3: Store the forwarding setting and ask about vote limits."""
-
+async def forwarding_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Step 3: Store the forwarding setting and ask about vote limits."""    
+    query = update.callback_query
+    await query.answer()
     poll = context.user_data["poll"]
-    poll.forwarding = False if update.message.text == 'Yes' else True
+    poll.forwarding = False if query.data == "Yes" else True
     logger.info("Disable poll forwarding: %s", poll.forwarding)
 
-    await update.message.reply_text(
-        "Send the max number of voters. If you don't want to set a limit, send /skip",
-        reply_markup=ReplyKeyboardRemove(),
+    await query.edit_message_text(
+        "Send the max number of voters. If you don't want to set a limit, send /skip"
     )
     return LIMIT
 
@@ -143,13 +142,13 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
     states={
-        ANONIMITY: [MessageHandler(filters.Regex("^(Public|Anonymous)$"), set_anonimity)],
-        FORWARDING: [MessageHandler(filters.Regex("^(Yes|No)$"), set_forwarding)],
+        ANONIMITY: [CallbackQueryHandler(poll_type_selected)],
+        FORWARDING: [CallbackQueryHandler(forwarding_selected)],
         LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit), CommandHandler("skip", skip_limit)],
         QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_question)],
         OPTIONS: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_option),
-            CommandHandler("done", end),  # User sends /done to finish
+            CommandHandler("done", end),
         ],
     },
     fallbacks=[MessageHandler(
