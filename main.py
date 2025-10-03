@@ -1,6 +1,6 @@
 import logging
 from telegram import Update
-from telegram.ext import filters, ApplicationBuilder, ContextTypes, PollAnswerHandler, PollHandler, CallbackContext, InlineQueryHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, PollAnswerHandler, CallbackContext, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler
 import os
 from dotenv import load_dotenv
 from handlers.error_handler import error_handler
@@ -9,6 +9,7 @@ from handlers.unknown_handler import unknown_handler
 from handlers.cancel_handler import cancel_handler
 from handlers.conversation_handler import conv_handler
 from handlers.poll_answer_handler import handle_poll_answer
+from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result
 from database.poll_repository import PollRepository
 from services.poll_service import PollService
 
@@ -16,6 +17,7 @@ from services.poll_service import PollService
 load_dotenv()
 
 telegram_token = os.getenv("TELEGRAM_TOKEN")
+polls_db = os.getenv("POLLS_DB")
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -26,24 +28,37 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Simple start command that explains how to use the inline form."""
+    await update.message.reply_text(
+        "🗳️ **Welcome to the Poll Bot!**\n\n"
+        "To create polls, use the inline form:\n"
+        "1. Type `@yourbot` in any chat\n"
+        "2. Choose from examples or create your own\n"
+        "3. Click to create the poll instantly!\n\n"
+        "**Format:** `question|option1|option2|option3|anonimity|forwarding|limit`\n\n"
+        "**Example:** `What's your favorite color?|Red|Blue|Green|false|true|100`",
+        parse_mode='Markdown'
+    )
 
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(telegram_token).build()
 
-    poll_repository = PollRepository("polls.db")
+    poll_repository = PollRepository(polls_db)
     poll_service = PollService(poll_repository)
 
     application.bot_data["poll_service"] = poll_service
 
-
     inline_query_handler = InlineQueryHandler(handle_inline_query)
+    chosen_inline_result_handler = ChosenInlineResultHandler(
+        handle_chosen_inline_result)
 
     application.add_error_handler(error_handler)
-    application.add_handler(conv_handler)
+    # application.add_handler(conv_handler)  # Commented out to use inline form only
+    application.add_handler(CommandHandler("start", start_command))
     application.add_handler(inline_query_handler)
+    application.add_handler(chosen_inline_result_handler)
     application.add_handler(cancel_handler)
     application.add_handler(help_handler)
     application.add_handler(PollAnswerHandler(handle_poll_answer))

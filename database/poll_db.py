@@ -1,15 +1,21 @@
 import sqlite3
 import logging
+import os 
+from dotenv import load_dotenv
 
-_DB_FILE = "polls.db"
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
+
+load_dotenv()
+
+polls_db = os.getenv("POLLS_DB")
+
 def setup_database():
-    with sqlite3.connect(_DB_FILE) as conn:
+    with sqlite3.connect(polls_db) as conn:
         cursor = conn.cursor()
         
         try:

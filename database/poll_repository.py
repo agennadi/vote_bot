@@ -75,18 +75,65 @@ class PollRepository:
 
     def remove_vote(self, poll_id: str, user_id: int):
         with sqlite3.connect(self.db) as conn:
-            cursor = conn.cursor()
-            # Count how many votes the user had
-            cursor.execute("SELECT COUNT(*) FROM votes WHERE poll_id = ? AND user_id = ?", (poll_id, user_id))
-            num_votes = cursor.fetchone()[0]
-            # Delete all votes for this user and poll
-            cursor.execute("DELETE FROM votes WHERE poll_id = ? AND user_id = ?", (poll_id, user_id))
-            # Decrement the answer_num by the number of votes removed
-            cursor.execute("UPDATE polls SET answer_num = answer_num - ? WHERE poll_id = ?", (num_votes, poll_id))            
-            conn.commit()
+            try:
+                cursor = conn.cursor()
+                # Count how many votes the user had
+                cursor.execute("SELECT COUNT(*) FROM votes WHERE poll_id = ? AND user_id = ?", (poll_id, user_id))
+                num_votes = cursor.fetchone()[0]
+                # Delete all votes for this user and poll
+                cursor.execute("DELETE FROM votes WHERE poll_id = ? AND user_id = ?", (poll_id, user_id))
+                # Decrement the answer_num by the number of votes removed
+                cursor.execute("UPDATE polls SET answer_num = answer_num - ? WHERE poll_id = ?", (num_votes, poll_id))            
+                conn.commit()
+            except sqlite3.IntegrityError as e:
+                logger.error("Database integrity error while updating poll: %s", e)
+                conn.rollback()
+            except sqlite3.DatabaseError as e:
+                logger.error("Database error while updating poll: %s", e)
+                conn.rollback()
+            except Exception as e:
+                logger.error("Unexpected error while updating poll: %s", e)
+                conn.rollback()                     
 
-    def get_polls_by_user(self, poll_id: str) -> list[Poll]:
-        pass 
+
+    def get_polls_by_user(self, user_id: str) -> list[Poll]:
+        with sqlite3.connect(self.db) as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM polls WHERE user_id = ?", (user_id))
+                rows = cursor.fetchall()
+                polls = []
+                for row in rows:
+                    poll = Poll(
+                        id=row[0],
+                        anonimity=bool(row[3]),
+                        forwarding=bool(row[4]),
+                        limit=row[5],
+                        question=row[6],
+                        expiration_date=row[7],
+                        answer_num=row[8],
+                        closed=bool(row[9])
+                    )
+                    # Fetch options
+                    cursor.execute("SELECT option_text FROM poll_options WHERE poll_id = ?", (poll.id,))
+                    options = [opt_row[0] for opt_row in cursor.fetchall()]
+                    poll.options = options
+                    
+                    # Fetch votes
+                    cursor.execute("SELECT user_id, option_id FROM votes WHERE poll_id = ?", (poll.id,))
+                    votes = {}
+                    for vote_row in cursor.fetchall():
+                        voter_id, option_id = vote_row
+                        if voter_id not in votes:
+                            votes[voter_id] = []
+                        votes[voter_id].append(option_id)
+                    poll.votes = votes
+                    
+                    polls.append(poll)
+                return polls
+            except Exception as e:
+                logger.error("Couldn't retrieve polls data: %s", e) 
+                return []               
 
     
     def get_active_polls(self) -> list[Poll]:
@@ -94,7 +141,10 @@ class PollRepository:
 
     
     def close_poll(self, poll_id: str) -> None:
-        pass
+        with sqlite3.connect(self.db) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE polls SET closed = 1 WHERE poll_id = ?", (poll_id))
+            conn.commit()
 
 
     def delete_poll(self, poll_id: str) -> None:

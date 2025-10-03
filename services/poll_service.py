@@ -85,7 +85,7 @@ class PollService:
 
         # Check if poll should close after the limit of answers has been reached
         if poll_data["answer_num"] >= poll.limit:
-            await poll._close_poll(poll, poll_data, context)            
+            await self.close_poll(poll, poll_data, context)            
             poll.closed = True
 
         # Save to database
@@ -100,8 +100,17 @@ class PollService:
         user_id = answer.user.id  # User who voted    
         self.poll_repository.remove_vote(poll_id, user_id)
 
+    
+    async def list_polls_by_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> list[Poll]:
+        pass
 
-    async def _close_poll(self, poll: Poll, poll_data: dict, context: ContextTypes.DEFAULT_TYPE) -> None:
+        
+    async def delete_poll(self, poll: Poll) -> None:
+        """Deletes a poll"""
+        self.poll_repository.delete_poll(poll.id)
+
+
+    async def close_poll(self, poll: Poll, poll_data: dict, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Closes a poll when limit is reached"""
         
         await context.bot.stop_poll(poll_data["chat_id"], poll_data["message_id"])
