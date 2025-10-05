@@ -1,6 +1,6 @@
 import logging
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, PollAnswerHandler, CallbackContext, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, PollAnswerHandler, CallbackContext, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler, filters
 import os
 from dotenv import load_dotenv
 from handlers.error_handler import error_handler
@@ -28,12 +28,13 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Simple start command that explains how to use the inline form."""
+async def start_command_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /start command in group chats - show inline query instructions."""
+    logger.info(f"Group chat detected - showing inline query instructions")
     await update.message.reply_text(
         "🗳️ **Welcome to the Poll Bot!**\n\n"
-        "To create polls, use the inline form:\n"
-        "1. Type `@yourbot` in any chat\n"
+        "To create polls in this group, use the inline form:\n"
+        "1. Type `@yourbot` in this chat\n"
         "2. Choose from examples or create your own\n"
         "3. Click to create the poll instantly!\n\n"
         "**Format:** `question|option1|option2|option3|anonimity|forwarding|limit`\n\n"
@@ -55,8 +56,10 @@ if __name__ == '__main__':
         handle_chosen_inline_result)
 
     application.add_error_handler(error_handler)
-    # application.add_handler(conv_handler)  # Commented out to use inline form only
-    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(conv_handler)  # Handles /start in private chats
+    application.add_handler(CommandHandler(
+        # Handles /start in groups
+        "start", start_command_group, filters=filters.ChatType.GROUPS))
     application.add_handler(inline_query_handler)
     application.add_handler(chosen_inline_result_handler)
     application.add_handler(cancel_handler)

@@ -33,7 +33,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def poll_type_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Step 2: Store poll anonimity and ask about forwarding."""    
+    """Step 2: Store poll anonimity and ask about forwarding."""
     query = update.callback_query
     await query.answer()
     poll = context.user_data["poll"]
@@ -50,7 +50,7 @@ async def poll_type_selected(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def forwarding_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Step 3: Store the forwarding setting and ask about vote limits."""    
+    """Step 3: Store the forwarding setting and ask about vote limits."""
     query = update.callback_query
     await query.answer()
     poll = context.user_data["poll"]
@@ -140,7 +140,8 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
+    entry_points=[CommandHandler(
+        "start", start, filters=filters.ChatType.PRIVATE)],
     states={
         ANONIMITY: [CallbackQueryHandler(poll_type_selected)],
         FORWARDING: [CallbackQueryHandler(forwarding_selected)],
@@ -152,5 +153,5 @@ conv_handler = ConversationHandler(
         ],
     },
     fallbacks=[MessageHandler(
-        filters.TEXT & ~filters.COMMAND, fallback), CommandHandler("start", start)],
+        filters.TEXT & ~filters.COMMAND, fallback), CommandHandler("start", start, filters=filters.ChatType.PRIVATE)],
 )
