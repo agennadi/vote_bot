@@ -1,6 +1,6 @@
 import logging
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, PollAnswerHandler, CallbackContext, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, PollAnswerHandler, PollHandler, CallbackContext, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler, MessageHandler, filters
 import os
 from dotenv import load_dotenv
 from handlers.error_handler import error_handler
@@ -9,7 +9,8 @@ from handlers.unknown_handler import unknown_handler
 from handlers.cancel_handler import cancel_handler
 from handlers.conversation_handler import conv_handler
 from handlers.poll_answer_handler import handle_poll_answer
-from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result
+from handlers.poll_update_handler import handle_poll_update
+from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result, handle_poll_creation_message
 from database.poll_repository import PollRepository
 from services.poll_service import PollService
 
@@ -60,11 +61,16 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler(
         # Handles /start in groups
         "start", start_command_group, filters=filters.ChatType.GROUPS))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(
+        r'^CREATEPOLL:'), handle_poll_creation_message))  # Auto-create polls from inline
     application.add_handler(inline_query_handler)
     application.add_handler(chosen_inline_result_handler)
     application.add_handler(cancel_handler)
     application.add_handler(help_handler)
-    application.add_handler(PollAnswerHandler(handle_poll_answer))
+    application.add_handler(PollAnswerHandler(
+        handle_poll_answer))  # For non-anonymous polls
+    # For anonymous polls (and all polls)
+    application.add_handler(PollHandler(handle_poll_update))
     application.add_handler(unknown_handler)
     # application.add_handler(CommandHandler("poll_results", poll.get_poll_results))'''
 

@@ -1,6 +1,6 @@
 import sqlite3
 import logging
-import os 
+import os
 from dotenv import load_dotenv
 
 logging.basicConfig(
@@ -14,10 +14,11 @@ load_dotenv()
 
 polls_db = os.getenv("POLLS_DB")
 
+
 def setup_database():
     with sqlite3.connect(polls_db) as conn:
         cursor = conn.cursor()
-        
+
         try:
             # Table to store poll metadata
             cursor.execute("""
@@ -27,7 +28,7 @@ def setup_database():
                 chat_id INTEGER,
                 anonimity BOOLEAN NOT NULL,
                 forwarding BOOLEAN NOT NULL,
-                "limit" INTEGER NOT NULL,
+                "limit" INTEGER,
                 question TEXT NOT NULL,
                 expiration_date DATETIME,
                 answer_num INTEGER, 
@@ -41,6 +42,7 @@ def setup_database():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 poll_id TEXT NOT NULL,
                 option_text TEXT NOT NULL,
+                vote_count INTEGER DEFAULT 0,
                 FOREIGN KEY (poll_id) REFERENCES polls (poll_id) ON DELETE CASCADE
             )
             """)
@@ -56,10 +58,11 @@ def setup_database():
                 FOREIGN KEY (option_id) REFERENCES poll_options (id) ON DELETE CASCADE
             )
             """)
-            
+
             conn.commit()
         except sqlite3.DatabaseError as e:
-            logger.error("Database initialization error: %s", e)            
+            logger.error("Database initialization error: %s", e)
+
 
 # Run this once when setting up
 setup_database()

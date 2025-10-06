@@ -34,58 +34,45 @@ async def show_poll_form(update: Update, context: ContextTypes.DEFAULT_TYPE, que
     if query.strip():
         poll_data = parse_poll_query(query)
         if poll_data:
-            # Show preview of the poll that will be created
-            preview_text = f"""
-🗳️ **Poll Preview**
-
-**Question:** {poll_data['question']}
-**Options:** {', '.join(poll_data['options'])}
-**Anonymous:** {'Yes' if poll_data['anonimity'] else 'No'}
-**Forwarding:** {'Allowed' if poll_data['forwarding'] else 'Disabled'}
-**Vote Limit:** {poll_data['limit'] if poll_data['limit'] else 'Unlimited'}
-
-*Click to create this poll in the chat.*
-            """
+            # Create trigger message that will auto-create the poll
+            # Format: hidden command marker + human-readable text
+            poll_command = f"CREATEPOLL:{query}"
 
             results.append(
                 InlineQueryResultArticle(
                     id=f"create_poll_{update.inline_query.id}",
                     title="🗳️ Create Poll",
-                    description=f"Question: {poll_data['question'][:50]}...",
+                    description=f"{poll_data['question'][:60]}",
                     input_message_content=InputTextMessageContent(
-                        message_text=preview_text,
-                        parse_mode='Markdown'
+                        message_text=poll_command
                     )
                 )
             )
-
-            # Store the poll data for when it's actually sent
-            context.bot_data[f"pending_poll_{update.inline_query.id}"] = poll_data
 
     # Always show examples
     results.extend([
         InlineQueryResultArticle(
             id="poll_example_1",
             title="🍕 Food Preference Poll",
-            description="What's your favorite food?|Pizza|Burger|Sushi|false|true",
+            description="What's your favorite food?|Pizza|Burger|Sushi",
             input_message_content=InputTextMessageContent(
-                message_text="What's your favorite food?|Pizza|Burger|Sushi|false|true"
+                message_text="CREATEPOLL:What's your favorite food?|Pizza|Burger|Sushi|false|true"
             )
         ),
         InlineQueryResultArticle(
             id="poll_example_2",
             title="🎬 Movie Night Poll",
-            description="Which movie should we watch?|Action|Comedy|Horror|true|false|50",
+            description="Which movie should we watch?|Action|Comedy|Horror",
             input_message_content=InputTextMessageContent(
-                message_text="Which movie should we watch?|Action|Comedy|Horror|true|false|50"
+                message_text="CREATEPOLL:Which movie should we watch?|Action|Comedy|Horror|true|false|50"
             )
         ),
         InlineQueryResultArticle(
             id="poll_example_3",
             title="🎨 Color Preference Poll",
-            description="What's your favorite color?|Red|Blue|Green|Yellow|false|true|100",
+            description="What's your favorite color?|Red|Blue|Green|Yellow",
             input_message_content=InputTextMessageContent(
-                message_text="What's your favorite color?|Red|Blue|Green|Yellow|false|true|100"
+                message_text="CREATEPOLL:What's your favorite color?|Red|Blue|Green|Yellow|false|true|100"
             )
         ),
         InlineQueryResultArticle(
@@ -165,84 +152,65 @@ def parse_poll_query(query: str) -> dict:
 
 async def handle_chosen_inline_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle when user selects an inline query result."""
-
     chosen_result = update.chosen_inline_result
+    logger.info(f"Chosen inline result: {chosen_result.result_id}")
 
-    # Check if this is a poll creation result
-    if chosen_result.result_id.startswith("create_poll_"):
-        query_id = chosen_result.result_id.replace("create_poll_", "")
-        poll_data = context.bot_data.get(f"pending_poll_{query_id}")
 
-        if poll_data:
+async def handle_poll_creation_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Detect and handle CREATEPOLL: messages to automatically create polls."""
+
+    message_text = update.message.text
+
+    if not message_text or not message_text.startswith("CREATEPOLL:"):
+        return
+
+    # Extract the poll query
+    poll_query = message_text.replace("CREATEPOLL:", "").strip()
+    logger.info(f"Poll creation triggered via inline query: {poll_query}")
+
+    # Parse the poll data
+    poll_data = parse_poll_query(poll_query)
+
+    if not poll_data:
+        await update.message.reply_text(
+            "❌ Invalid poll format. Please use: `question|option1|option2|anonimity|forwarding|limit`",
+            parse_mode='Markdown'
+        )
+        return
+
+    try:
+        # Create Poll object first
+        poll = Poll(
+            question=poll_data['question'],
+            options=poll_data['options'],
+            anonimity=poll_data['anonimity'],
+            forwarding=poll_data['forwarding'],
+            limit=poll_data['limit'] if poll_data['limit'] else None
+        )
+
+        # Get poll service and send the poll
+        poll_service = context.bot_data.get('poll_service')
+        if poll_service:
+            await poll_service.send_poll(poll, update, context)
+            logger.info(
+                f"Poll created successfully from inline query in chat {update.effective_chat.id}")
+
+            # Try to delete the CREATEPOLL message
+            # Note: This usually fails for inline query results since they're sent by the user
             try:
-                # Create Poll object
-                poll = Poll(
-                    question=poll_data['question'],
-                    options=poll_data['options'],
-                    anonimity=poll_data['anonimity'],
-                    forwarding=poll_data['forwarding'],
-                    limit=poll_data['limit'] if poll_data['limit'] else None
-                )
+                await update.message.delete()
+                logger.debug("Successfully deleted CREATEPOLL trigger message")
+            except BadRequest as e:
+                # Expected: inline query messages are sent by users, not the bot
+                logger.debug(
+                    f"Cannot modify inline query result message (expected): {e}")
+        else:
+            logger.error("Poll service not found in bot_data")
+            await update.message.reply_text("❌ Failed to create poll. Please try again.")
 
-                # Get poll service
-                poll_service = context.bot_data.get('poll_service')
-                if poll_service:
-                    # Create a mock update for the poll service
-                    mock_update = Update(
-                        update_id=update.update_id,
-                        message=update.message,
-                        effective_chat=update.effective_chat,
-                        effective_user=update.effective_user
-                    )
-
-                    # Send the actual poll
-                    await poll_service.send_poll(poll, mock_update, context)
-
-                    # Clean up
-                    del context.bot_data[f"pending_poll_{query_id}"]
-
-            except Exception as e:
-                logger.error(f"Error sending poll from inline result: {e}")
-                await context.bot.send_message(
-                    update.effective_chat.id,
-                    "❌ Failed to create the poll. Please try again."
-                )
-
-    # Handle example selections - parse the example and create poll
-    elif chosen_result.result_id.startswith("poll_example_"):
+    except Exception as e:
+        logger.error(f"Error creating poll from message: {e}", exc_info=True)
         try:
-            # The example text is in the input_message_content
-            example_text = chosen_result.query
-
-            # Parse the example
-            poll_data = parse_poll_query(example_text)
-            if poll_data:
-                # Create Poll object
-                poll = Poll(
-                    question=poll_data['question'],
-                    options=poll_data['options'],
-                    anonimity=poll_data['anonimity'],
-                    forwarding=poll_data['forwarding'],
-                    limit=poll_data['limit'] if poll_data['limit'] else None
-                )
-
-                # Get poll service
-                poll_service = context.bot_data.get('poll_service')
-                if poll_service:
-                    # Create a mock update for the poll service
-                    mock_update = Update(
-                        update_id=update.update_id,
-                        message=update.message,
-                        effective_chat=update.effective_chat,
-                        effective_user=update.effective_user
-                    )
-
-                    # Send the actual poll
-                    await poll_service.send_poll(poll, mock_update, context)
-
-        except Exception as e:
-            logger.error(f"Error creating poll from example: {e}")
-            await context.bot.send_message(
-                update.effective_chat.id,
-                "❌ Failed to create the poll. Please try again."
-            )
+            await update.message.reply_text("❌ Failed to create the poll. Please try again.")
+        except:
+            pass  # Avoid cascading errors
