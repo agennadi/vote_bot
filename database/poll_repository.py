@@ -244,8 +244,9 @@ class PollRepository:
     def close_poll(self, poll_id: str) -> None:
         with sqlite3.connect(self.db) as conn:
             cursor = conn.cursor()
+            # Try with explicit tuple creation
             cursor.execute(
-                "UPDATE polls SET closed = 1 WHERE poll_id = ?", (poll_id))
+                "UPDATE polls SET closed = 1 WHERE poll_id = ?", (poll_id,))
             conn.commit()
 
     def delete_poll(self, poll_id: str) -> None:

@@ -43,6 +43,7 @@ class PollService:
         # Save some info about the poll the bot_data for later use in record_poll_answer
         payload = {
             message.poll.id: {
+                "poll_object": poll,  # Store the actual Poll object!
                 "question": poll.question,
                 "options": poll.options,
                 "message_id": message.message_id,
@@ -89,6 +90,8 @@ class PollService:
         # Update database if anonymous poll
         if poll_id in context.bot_data:
             poll_data = context.bot_data[poll_id]
+            # Get our original Poll object!
+            our_poll = poll_data.get("poll_object")
 
             if poll_data.get("anonimity"):  # If poll is anonymous
                 self.poll_repository.update_anonymous_poll_counts(
@@ -96,19 +99,18 @@ class PollService:
                 logger.info(
                     "Updated vote counts for anonymous poll %s in database", poll_id)
 
+            # Update our poll object with current voter count
+            if our_poll:
+                our_poll.answer_num = poll.total_voter_count
+                # Update bot_data to keep it in sync
+                poll_data["answer_num"] = poll.total_voter_count
+
             # Check if we need to close the poll based on vote limit
-            if not poll.is_closed:
-                limit = poll_data.get("limit")
-                if limit and poll.total_voter_count >= limit:
+            if not poll.is_closed and our_poll:
+                if our_poll.limit and our_poll.answer_num >= our_poll.limit:
                     logger.info(
-                        "Poll %s reached limit of %s voters, closing...", poll_id, limit)
-                    poll_obj = Poll(
-                        id=poll_id,
-                        question=poll_data["question"],
-                        options=poll_data["options"],
-                        limit=limit
-                    )
-                    await self.close_poll(poll_obj, poll_data, context)
+                        "Poll %s reached limit of %s voters, closing...", poll_id, our_poll.limit)
+                    await self.close_poll(our_poll, poll_data, context)
 
     async def record_poll_answer(self, poll: Poll, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Tracks users' poll responses and closes poll if the limit is reached."""
@@ -130,22 +132,29 @@ class PollService:
             # Try from bot_data (inline queries)
             if not poll and poll_id in context.bot_data:
                 poll_data = context.bot_data[poll_id]
-                votes_dict = {}
-                if "votes" in poll_data:
-                    for uid_str, opts in poll_data["votes"].items():
-                        votes_dict[int(uid_str)] = opts
 
-                poll = Poll(
-                    id=poll_id,
-                    question=poll_data["question"],
-                    options=poll_data["options"],
-                    answer_num=poll_data.get("answer_num", 0),
-                    votes=votes_dict,
-                    anonimity=poll_data.get("anonimity", False),
-                    forwarding=poll_data.get("forwarding", True),
-                    limit=poll_data.get("limit", sys.maxsize)
-                )
-                logger.info("Reconstructed poll from bot_data")
+                # First try to get the stored poll object
+                poll = poll_data.get("poll_object")
+                if poll:
+                    logger.info("Retrieved stored poll object from bot_data")
+                else:
+                    # Fallback: reconstruct from data (for backward compatibility)
+                    votes_dict = {}
+                    if "votes" in poll_data:
+                        for uid_str, opts in poll_data["votes"].items():
+                            votes_dict[int(uid_str)] = opts
+
+                    poll = Poll(
+                        id=poll_id,
+                        question=poll_data["question"],
+                        options=poll_data["options"],
+                        answer_num=poll_data.get("answer_num", 0),
+                        votes=votes_dict,
+                        anonimity=poll_data.get("anonimity", False),
+                        forwarding=poll_data.get("forwarding", True),
+                        limit=poll_data.get("limit", sys.maxsize)
+                    )
+                    logger.info("Reconstructed poll from bot_data")
 
             # Try from database (bot restart)
             if not poll:
@@ -154,6 +163,7 @@ class PollService:
                     logger.info("Loaded poll from database")
                     # Repopulate bot_data
                     context.bot_data[poll_id] = {
+                        "poll_object": poll,  # Store the actual Poll object!
                         "question": poll.question,
                         "options": poll.options,
                         "answer_num": poll.answer_num,
@@ -183,7 +193,6 @@ class PollService:
             poll_data = context.bot_data[poll_id]
             if poll.limit and poll_data["answer_num"] >= poll.limit:
                 await self.close_poll(poll, poll_data, context)
-
 
         # Save to database
         self.poll_repository.record_poll_answer(
@@ -221,6 +230,9 @@ class PollService:
                         poll.id, stopped_poll.total_voter_count)
 
         # Update closed status in database
+        logger.info("Closing poll with id: %s", str(poll.id))
+        logger.info("Poll id type: %s", str(type(poll.id)))
+        logger.info("Poll id repr: %s", repr(poll.id))
         self.poll_repository.close_poll(poll.id)
         poll.closed = True
 
