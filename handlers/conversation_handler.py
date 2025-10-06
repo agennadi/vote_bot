@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from utils.translations import translator
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -24,8 +25,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["poll"] = Poll()
     logger.info(repr(context.user_data["poll"]))
 
+    # Get user's language and translate the message
+    user = update.effective_user
+    message = translator.translate("start_private", user)
+
     await update.message.reply_text(
-        "Hi, let's create a custom poll! First, select the poll type:",
+        message,
         reply_markup=InlineKeyboardMarkup(reply_keyboard),
     )
 

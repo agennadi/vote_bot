@@ -13,6 +13,7 @@ from handlers.poll_update_handler import handle_poll_update
 from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result, handle_poll_creation_message
 from database.poll_repository import PollRepository
 from services.poll_service import PollService
+from utils.translations import translator
 
 
 load_dotenv()
@@ -32,14 +33,15 @@ logger = logging.getLogger(__name__)
 async def start_command_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command in group chats - show inline query instructions."""
     logger.info(f"Group chat detected - showing inline query instructions")
+
+    # Get user's language and translate the message
+    user = update.effective_user
+    bot_username = context.bot.username
+    message = translator.translate(
+        "start_group", user, bot_username=bot_username)
+
     await update.message.reply_text(
-        "🗳️ **Welcome to the Poll Bot!**\n\n"
-        "To create polls in this group, use the inline form:\n"
-        "1. Type `@yourbot` in this chat\n"
-        "2. Choose from examples or create your own\n"
-        "3. Click to create the poll instantly!\n\n"
-        "**Format:** `question|option1|option2|option3|anonimity|forwarding|limit`\n\n"
-        "**Example:** `What's your favorite color?|Red|Blue|Green|false|true|100`",
+        message,
         parse_mode='Markdown'
     )
 

@@ -1,0 +1,23 @@
+{
+    "poll_created": "Poll created successfully!",
+    "poll_creation_failed": "❌ Failed to create poll. Please try again.",
+    "invalid_poll_format": "❌ Invalid poll format. Please use: `question|option1|option2|anonimity|forwarding|limit`",
+    "poll_closed_limit": "The poll '{question}' has closed after reaching the limit of {limit} voters.",
+    "poll_closed_manual": "The poll '{question}' has been closed.",
+    "poll_results": "📊 Poll Results: {question}",
+    "total_voters": "👥 Total voters: {count}",
+    "total_votes": "📝 Total votes: {count}",
+    "votes_percentage": "{option}: {count} votes ({percentage:.1f}%)",
+    "start_private": "Welcome! I can help you create custom polls. Use /create to start creating a poll.",
+    "start_group": "🗳️ **Welcome to the Poll Bot!**\n\nTo create polls in this group, use the inline form:\n1. Type `@vote_the_bot` in this chat\n2. Choose from examples or create your own\n3. Click to create the poll instantly!\n\n**Format:** `question|option1|option2|option3|anonimity|forwarding|limit`\n\n**Example:** `What's your favorite color?|Red|Blue|Green|false|true|100`",
+    "poll_question_prompt": "What's your poll question?",
+    "poll_options_prompt": "Enter poll options (one per line, send 'done' when finished):",
+    "poll_anonimity_prompt": "Should this poll be anonymous? (yes/no)",
+    "poll_forwarding_prompt": "Should this poll allow forwarding? (yes/no)",
+    "poll_limit_prompt": "Enter vote limit (or 'none' for unlimited):",
+    "poll_created_success": "✅ Poll created and sent successfully!",
+    "invalid_yes_no": "Please answer 'yes' or 'no'",
+    "invalid_number": "Please enter a valid number or 'none'",
+    "poll_cancelled": "Poll creation cancelled.",
+    "error_occurred": "❌ An error occurred. Please try again."
+}

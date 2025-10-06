@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from models.poll import Poll
 from services.poll_service import PollService
+from utils.translations import translator
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -172,8 +173,10 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
     poll_data = parse_poll_query(poll_query)
 
     if not poll_data:
+        user = update.effective_user
+        message = translator.translate("invalid_poll_format", user)
         await update.message.reply_text(
-            "❌ Invalid poll format. Please use: `question|option1|option2|anonimity|forwarding|limit`",
+            message,
             parse_mode='Markdown'
         )
         return
@@ -206,11 +209,15 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
                     f"Cannot modify inline query result message (expected): {e}")
         else:
             logger.error("Poll service not found in bot_data")
-            await update.message.reply_text("❌ Failed to create poll. Please try again.")
+            user = update.effective_user
+            message = translator.translate("poll_creation_failed", user)
+            await update.message.reply_text(message)
 
     except Exception as e:
         logger.error(f"Error creating poll from message: {e}", exc_info=True)
         try:
-            await update.message.reply_text("❌ Failed to create the poll. Please try again.")
+            user = update.effective_user
+            message = translator.translate("poll_creation_failed", user)
+            await update.message.reply_text(message)
         except:
             pass  # Avoid cascading errors

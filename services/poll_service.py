@@ -3,6 +3,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from database.poll_repository import PollRepository
 from models.poll import Poll
+from utils.translations import translator
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -236,7 +237,13 @@ class PollService:
         self.poll_repository.close_poll(poll.id)
         poll.closed = True
 
+        # Get the user who created the poll for language detection
+        # For now, we'll use a default message since we don't have direct access to the user
+        message = translator.translate("poll_closed_limit",
+                                       question=poll_data['question'],
+                                       limit=poll.limit)
+
         await context.bot.send_message(
             poll_data["chat_id"],
-            f"The poll '{poll_data['question']}' has closed after reaching the limit of {poll.limit} voters."
+            message
         )
