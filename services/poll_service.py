@@ -207,8 +207,10 @@ class PollService:
         user_id = answer.user.id  # User who voted
         self.poll_repository.remove_vote(poll_id, user_id)
 
+
     async def list_polls_by_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> list[Poll]:
-        pass
+        """Lists all polls created by a user"""
+        return self.poll_repository.get_polls_by_user(update.effective_user.id)
 
     async def delete_poll(self, poll: Poll) -> None:
         """Deletes a poll"""
@@ -231,9 +233,6 @@ class PollService:
                         poll.id, stopped_poll.total_voter_count)
 
         # Update closed status in database
-        logger.info("Closing poll with id: %s", str(poll.id))
-        logger.info("Poll id type: %s", str(type(poll.id)))
-        logger.info("Poll id repr: %s", repr(poll.id))
         self.poll_repository.close_poll(poll.id)
         poll.closed = True
 
