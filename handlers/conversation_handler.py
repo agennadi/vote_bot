@@ -45,10 +45,12 @@ async def poll_type_selected(update: Update, context: ContextTypes.DEFAULT_TYPE)
     poll.anonimity = True if query.data == "Anonymous" else False
     logger.info("Poll anonimity: %s", poll.anonimity)
 
+    user = update.effective_user
     reply_keyboard = [[InlineKeyboardButton(
         "Yes", callback_data="Yes"), InlineKeyboardButton("No", callback_data="No")]]
+    message = translator.translate("poll_forwarding_prompt", user)
     await query.edit_message_text(
-        "Do you allow forwarding the poll to other chats?",
+        message,
         reply_markup=InlineKeyboardMarkup(reply_keyboard)
     )
     return FORWARDING
@@ -62,20 +64,36 @@ async def forwarding_selected(update: Update, context: ContextTypes.DEFAULT_TYPE
     poll.forwarding = False if query.data == "Yes" else True
     logger.info("Disable poll forwarding: %s", poll.forwarding)
 
-    await query.edit_message_text(
-        "Send the max number of voters. If you don't want to set a limit, send /skip"
-    )
+    user = update.effective_user
+    message = translator.translate("poll_limit_prompt", user)
+    await query.edit_message_text(message)
     return LIMIT
 
 
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Step 4: Store the vote limits."""
 
-    poll = context.user_data["poll"]
-    poll.limit = int(update.message.text)
-    logger.info("Poll limit: %s", poll.limit)
+    try:
+        limit_value = int(update.message.text)
 
-    return await ask_for_question(update, context)
+        # Validate that limit is at least 1
+        if limit_value < 1:
+            user = update.effective_user
+            message = translator.translate("invalid_limit_min", user)
+            await update.message.reply_text(message)
+            return LIMIT  # Stay in LIMIT state to ask again
+
+        poll = context.user_data["poll"]
+        poll.limit = limit_value
+        logger.info("Poll limit: %s", poll.limit)
+
+        return await ask_for_question(update, context)
+    except ValueError:
+        # If conversion to int fails, show invalid number message
+        user = update.effective_user
+        message = translator.translate("invalid_number", user)
+        await update.message.reply_text(message)
+        return LIMIT  # Stay in LIMIT state to ask again
 
 
 async def skip_limit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -89,7 +107,9 @@ async def skip_limit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def ask_for_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Ask for a poll question."""
 
-    await update.message.reply_text("Now, send me the poll question.")
+    user = update.effective_user
+    message = translator.translate("poll_question_prompt", user)
+    await update.message.reply_text(message)
 
     return QUESTION
 
@@ -101,7 +121,9 @@ async def set_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     poll.question = update.message.text
     logger.info("Poll question is %s", poll.question)
 
-    await update.message.reply_text("Now, send me a poll option.")
+    user = update.effective_user
+    message = translator.translate("poll_option_prompt", user)
+    await update.message.reply_text(message)
 
     return OPTIONS
 
@@ -115,10 +137,13 @@ async def set_option(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logger.info("Poll option is '%s'", poll_option)
     logger.info("All poll options: %s", poll.options)
 
+    user = update.effective_user
     if len(poll.options) < 2:
-        await update.message.reply_text("Please enter another option - polls must have at least 2 options.")
+        message = translator.translate("poll_min_options_required", user)
+        await update.message.reply_text(message)
     else:
-        await update.message.reply_text("Send me another option or type /done if finished.")
+        message = translator.translate("poll_options_continue", user)
+        await update.message.reply_text(message)
 
     return OPTIONS  # Stay in this step until the user is done
 
@@ -128,20 +153,25 @@ async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> input:
 
     poll = context.user_data["poll"]
     poll_service = context.bot_data['poll_service']
+    user = update.effective_user
 
     try:
         await poll_service.send_poll(poll, update, context)
         logger.info("Poll sent successfully")
-        await update.message.reply_text("You are all set! ✅ Your poll has been created.")
+        message = translator.translate("poll_created_success", user)
+        await update.message.reply_text(message)
     except BadRequest as e:
         logger.error("Failed to send poll: %s", e)
-        await update.message.reply_text("❌ Failed to create the poll. Please check your input and try again.")
+        message = translator.translate("poll_creation_failed", user)
+        await update.message.reply_text(message)
     return ConversationHandler.END
 
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Notifies the user when the bot doesn't recognize their input."""
-    await update.message.reply_text("Sorry, I didn't understand that. Please try again.")
+    user = update.effective_user
+    message = translator.translate("error_occurred", user)
+    await update.message.reply_text(message)
 
 
 conv_handler = ConversationHandler(

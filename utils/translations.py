@@ -78,3 +78,4 @@ class Translator:
 
 # Global translator instance
 translator = Translator()
+
