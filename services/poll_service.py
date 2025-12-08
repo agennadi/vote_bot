@@ -40,6 +40,7 @@ class PollService:
         # Extract user info
         chat_id = update.effective_chat.id
         user_id = update.message.from_user.id
+        user = update.message.from_user
 
         # Save some info about the poll the bot_data for later use in record_poll_answer
         payload = {
@@ -49,11 +50,12 @@ class PollService:
                 "options": poll.options,
                 "message_id": message.message_id,
                 "chat_id": chat_id,
-                "answer_num": 0,
+                "voters_num": 0,
                 "votes": {},
                 "anonimity": poll.anonimity,
                 "forwarding": poll.forwarding,
-                "limit": poll.limit
+                "limit": poll.limit,
+                "user": user  # Store user for language detection
             }
         }
         context.bot_data.update(payload)
@@ -102,13 +104,13 @@ class PollService:
 
             # Update our poll object with current voter count
             if our_poll:
-                our_poll.answer_num = poll.total_voter_count
+                our_poll.voters_num = poll.total_voter_count
                 # Update bot_data to keep it in sync
-                poll_data["answer_num"] = poll.total_voter_count
+                poll_data["voters_num"] = poll.total_voter_count
 
             # Check if we need to close the poll based on vote limit
             if not poll.is_closed and our_poll:
-                if our_poll.limit and our_poll.answer_num >= our_poll.limit:
+                if our_poll.limit and our_poll.voters_num >= our_poll.limit:
                     logger.info(
                         "Poll %s reached limit of %s voters, closing...", poll_id, our_poll.limit)
                     await self.close_poll(our_poll, poll_data, context)
@@ -149,7 +151,7 @@ class PollService:
                         id=poll_id,
                         question=poll_data["question"],
                         options=poll_data["options"],
-                        answer_num=poll_data.get("answer_num", 0),
+                        voters_num=poll_data.get("voters_num", 0),
                         votes=votes_dict,
                         anonimity=poll_data.get("anonimity", False),
                         forwarding=poll_data.get("forwarding", True),
@@ -167,7 +169,7 @@ class PollService:
                         "poll_object": poll,  # Store the actual Poll object!
                         "question": poll.question,
                         "options": poll.options,
-                        "answer_num": poll.answer_num,
+                        "voters_num": poll.voters_num,
                         "votes": {str(k): v for k, v in poll.votes.items()},
                         "anonimity": poll.anonimity,
                         "forwarding": poll.forwarding,
@@ -182,17 +184,17 @@ class PollService:
         # Update bot_data if available
         if poll_id in context.bot_data:
             poll_data = context.bot_data[poll_id]
-            poll_data["answer_num"] += 1
+            poll_data["voters_num"] += 1
             poll_data["votes"][str(user_id)] = selected_options
 
         # Update poll instance
         poll.votes[user_id] = selected_options
-        poll.answer_num += 1
+        poll.voters_num += 1
 
         # Check if poll should close after the limit of answers has been reached
         if poll_id in context.bot_data:
             poll_data = context.bot_data[poll_id]
-            if poll.limit and poll_data["answer_num"] >= poll.limit:
+            if poll.limit and poll_data["voters_num"] >= poll.limit:
                 await self.close_poll(poll, poll_data, context)
 
         # Save to database
@@ -237,8 +239,8 @@ class PollService:
         poll.closed = True
 
         # Get the user who created the poll for language detection
-        # For now, we'll use a default message since we don't have direct access to the user
-        message = translator.translate("poll_closed_limit",
+        user = poll_data.get("user")
+        message = translator.translate("poll_closed_limit", user,
                                        question=poll_data['question'],
                                        limit=poll.limit)
 

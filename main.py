@@ -8,8 +8,8 @@ from handlers.help_handler import help_handler
 from handlers.unknown_handler import unknown_handler
 from handlers.cancel_handler import cancel_handler
 from handlers.conversation_handler import conv_handler
-from handlers.poll_answer_handler import handle_poll_answer
-from handlers.poll_update_handler import handle_poll_update
+from handlers.non_anonymous_poll_answer_handler import handle_non_anonymous_poll_answer
+from handlers.anonymous_poll_update_handler import handle_anonymous_poll_update
 from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result, handle_poll_creation_message
 from database.poll_repository import PollRepository
 from services.poll_service import PollService
@@ -70,9 +70,9 @@ if __name__ == '__main__':
     application.add_handler(cancel_handler)
     application.add_handler(help_handler)
     application.add_handler(PollAnswerHandler(
-        handle_poll_answer))  # For non-anonymous polls
+        handle_non_anonymous_poll_answer))  # For non-anonymous polls
     # For anonymous polls (and all polls)
-    application.add_handler(PollHandler(handle_poll_update))
+    application.add_handler(PollHandler(handle_anonymous_poll_update))
     application.add_handler(unknown_handler)
     # application.add_handler(CommandHandler("poll_results", poll.get_poll_results))'''
 

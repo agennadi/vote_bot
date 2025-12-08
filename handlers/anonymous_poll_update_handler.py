@@ -10,9 +10,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-async def handle_poll_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_anonymous_poll_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Thin handler for Poll updates (for anonymous polls).
+    Handler for Poll updates (for anonymous polls).
     Delegates all logic to PollService.
     """
     poll = update.poll
@@ -26,3 +26,4 @@ async def handle_poll_update(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Let the service handle everything
     await poll_service.handle_anonymous_poll_update(poll, context)
+

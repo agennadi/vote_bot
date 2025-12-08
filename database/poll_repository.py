@@ -21,9 +21,9 @@ class PollRepository:
             try:
                 # Insert poll
                 cursor.execute("""
-                INSERT INTO polls (poll_id, user_id, chat_id, anonimity, forwarding, "limit", question, expiration_date, answer_num, closed)
+                INSERT INTO polls (poll_id, user_id, chat_id, anonimity, forwarding, "limit", question, expiration_date, voters_num, closed)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (poll.id, user_id, chat_id, poll.anonimity, poll.forwarding, poll.limit, poll.question, poll.expiration_date, poll.answer_num, poll.closed))
+                """, (poll.id, user_id, chat_id, poll.anonimity, poll.forwarding, poll.limit, poll.question, poll.expiration_date, poll.voters_num, poll.closed))
 
                 # Insert poll options
                 for option in poll.options:
@@ -62,7 +62,7 @@ class PollRepository:
                 # Update poll
                 cursor.execute("""
                     UPDATE polls
-                    SET answer_num = answer_num + 1, 
+                    SET voters_num = voters_num + 1, 
                         closed = ?
                     WHERE poll_id = ?;
                 """, (is_closed, poll.id))
@@ -111,7 +111,7 @@ class PollRepository:
                 if total_voter_count is not None:
                     cursor.execute("""
                         UPDATE polls 
-                        SET answer_num = ? 
+                        SET voters_num = ? 
                         WHERE poll_id = ?
                     """, (total_voter_count, poll_id))
 
@@ -133,9 +133,9 @@ class PollRepository:
                 # Delete all votes for this user and poll
                 cursor.execute(
                     "DELETE FROM votes WHERE poll_id = ? AND user_id = ?", (poll_id, user_id))
-                # Decrement the answer_num by the number of votes removed
+                # Decrement the voters_num by the number of votes removed
                 cursor.execute(
-                    "UPDATE polls SET answer_num = answer_num - ? WHERE poll_id = ?", (num_votes, poll_id))
+                    "UPDATE polls SET voters_num = voters_num - ? WHERE poll_id = ?", (num_votes, poll_id))
                 conn.commit()
             except sqlite3.IntegrityError as e:
                 logger.error(
@@ -169,7 +169,7 @@ class PollRepository:
                     limit=row[5],
                     question=row[6],
                     expiration_date=row[7],
-                    answer_num=row[8],
+                    voters_num=row[8],
                     closed=bool(row[9])
                 )
 
@@ -212,7 +212,7 @@ class PollRepository:
                         limit=row[5],
                         question=row[6],
                         expiration_date=row[7],
-                        answer_num=row[8],
+                        voters_num=row[8],
                         closed=bool(row[9])
                     )
                     # Fetch options
@@ -320,7 +320,7 @@ class PollRepository:
 
                 # Get poll info
                 cursor.execute("""
-                    SELECT question, answer_num, closed, anonimity
+                    SELECT question, voters_num, closed, anonimity
                     FROM polls 
                     WHERE poll_id = ?
                 """, (poll_id,))
@@ -329,7 +329,7 @@ class PollRepository:
                 if not poll_info:
                     return {}
 
-                question, answer_num, closed, is_anonymous = poll_info
+                question, voters_num, closed, is_anonymous = poll_info
 
                 # Get unique voter count
                 cursor.execute("""

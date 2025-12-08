@@ -22,7 +22,7 @@ class Poll:
     options: list[str] = field(default_factory=list)
     expiration_date: datetime = field(
         default_factory=lambda: datetime.now() + timedelta(weeks=1))
-    answer_num: int = 0
+    voters_num: int = 0
     votes: dict = field(default_factory=dict)
     closed: bool = False
 
@@ -67,7 +67,7 @@ class Poll:
             "question": self.question,
             "options": self.options,
             "expiration_date": self.expiration_date,
-            "answer_num": self.answer_num,
+            "voters_num": self.voters_num,
             "votes": self.votes,
             "closed": self.closed,
         }

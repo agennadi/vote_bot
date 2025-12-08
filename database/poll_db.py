@@ -15,6 +15,58 @@ load_dotenv()
 polls_db = os.getenv("POLLS_DB")
 
 
+def migrate_answer_num_to_voters_num():
+    """Migrate answer_num column to voters_num in existing databases."""
+    with sqlite3.connect(polls_db) as conn:
+        cursor = conn.cursor()
+        try:
+            # Check if answer_num column exists
+            cursor.execute("PRAGMA table_info(polls)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'answer_num' in columns and 'voters_num' not in columns:
+                logger.info("Migrating answer_num to voters_num...")
+                
+                # SQLite doesn't support ALTER TABLE RENAME COLUMN in older versions
+                # So we need to recreate the table
+                cursor.execute("""
+                    CREATE TABLE polls_new (
+                        poll_id TEXT PRIMARY KEY,
+                        user_id INTEGER,
+                        chat_id INTEGER,
+                        anonimity BOOLEAN NOT NULL,
+                        forwarding BOOLEAN NOT NULL,
+                        "limit" INTEGER,
+                        question TEXT NOT NULL,
+                        expiration_date DATETIME,
+                        voters_num INTEGER, 
+                        closed BOOLEAN DEFAULT FALSE
+                    )
+                """)
+                
+                # Copy data from old table to new table
+                cursor.execute("""
+                    INSERT INTO polls_new 
+                    SELECT poll_id, user_id, chat_id, anonimity, forwarding, "limit", 
+                           question, expiration_date, answer_num, closed
+                    FROM polls
+                """)
+                
+                # Drop old table
+                cursor.execute("DROP TABLE polls")
+                
+                # Rename new table
+                cursor.execute("ALTER TABLE polls_new RENAME TO polls")
+                
+                conn.commit()
+                logger.info("Migration completed: answer_num -> voters_num")
+            elif 'voters_num' in columns:
+                logger.info("Database already uses voters_num column")
+        except sqlite3.DatabaseError as e:
+            logger.error("Migration error: %s", e)
+            conn.rollback()
+
+
 def setup_database():
     with sqlite3.connect(polls_db) as conn:
         cursor = conn.cursor()
@@ -31,7 +83,7 @@ def setup_database():
                 "limit" INTEGER,
                 question TEXT NOT NULL,
                 expiration_date DATETIME,
-                answer_num INTEGER, 
+                voters_num INTEGER, 
                 closed BOOLEAN DEFAULT FALSE
             )
             """)
@@ -60,6 +112,9 @@ def setup_database():
             """)
 
             conn.commit()
+            
+            # Run migration if needed
+            migrate_answer_num_to_voters_num()
         except sqlite3.DatabaseError as e:
             logger.error("Database initialization error: %s", e)
 
