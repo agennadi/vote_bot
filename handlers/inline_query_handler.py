@@ -30,7 +30,7 @@ async def show_poll_form(update: Update, context: ContextTypes.DEFAULT_TYPE, que
             id="webapp_create_poll",
             title="📝 Create Poll with Form",
             description="Fill out a form to create your poll",
-            input_message_content=InputTextMessageContent("WEBAPPFORM:"),
+            input_message_content=InputTextMessageContent("📝 Check your private chat with the bot to fill out the poll form. The poll will appear in this group!"),
             thumbnail_url="https://img.icons8.com/fluency/48/000000/create-new.png"
         ),
         InlineQueryResultArticle(
@@ -98,7 +98,7 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
         return
     
     # Handle Web App form trigger
-    if message_text.strip() == "WEBAPPFORM:" or message_text.strip().startswith("WEBAPPFORM:"):
+    if message_text.strip() == "WEBAPPFORM:" or message_text.strip().startswith("WEBAPPFORM:") or "Check your private chat with the bot" in message_text:
         logger.info(f"WEBAPPFORM detected in message: '{message_text}'")
         
         # Use KeyboardButton with WebApp (tg.sendData works!)
