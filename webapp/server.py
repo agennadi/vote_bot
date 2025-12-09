@@ -1,56 +1,57 @@
 #!/usr/bin/env python3
-"""
-Simple development server for the Web App.
-For production, use a proper web server like nginx or deploy to Vercel/Netlify.
-"""
-
 import http.server
 import socketserver
 import os
 from pathlib import Path
 
 PORT = 8000
-DIRECTORY = Path(__file__).parent
+DIR = Path(__file__).parent
 
-
-class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(DIRECTORY), **kwargs)
+        super().__init__(*args, directory=str(DIR), **kwargs)
     
-    def guess_type(self, path):
-        """Ensure correct Content-Type for HTML files."""
-        mimetype, encoding = super().guess_type(path)
-        if path.endswith('.html'):
-            return 'text/html', encoding
-        return mimetype, encoding
-    
-    def end_headers(self):
-        # Add CORS headers for development
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        # Add security headers for Telegram Web App
-        self.send_header('X-Content-Type-Options', 'nosniff')
-        super().end_headers()
-
-
-def run_server():
-    os.chdir(DIRECTORY)
-    
-    with socketserver.TCPServer(("", PORT), MyHTTPRequestHandler) as httpd:
-        print(f"Web App server running at http://localhost:{PORT}")
-        print(f"Serving files from: {DIRECTORY}")
-        print("\n⚠️  For Telegram Web App, you need HTTPS!")
-        print("Use ngrok or similar to create a tunnel:")
-        print(f"  ngrok http {PORT}")
-        print("\nThen set WEBAPP_URL in your .env file to the ngrok HTTPS URL")
-        print("Press Ctrl+C to stop the server")
+    def send_head(self):
+        """Override to fix Content-Type."""
+        path = self.translate_path(self.path)
+        
+        if os.path.isdir(path):
+            parts = self.path.rstrip('/').split('/')
+            if parts[-1] == '' or '.' not in parts[-1]:
+                for index in "index.html", "index.htm":
+                    index = os.path.join(path, index)
+                    if os.path.exists(index):
+                        path = index
+                        break
         
         try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\n\nServer stopped.")
+            f = open(path, 'rb')
+        except OSError:
+            self.send_error(404, "File not found")
+            return None
+        
+        try:
+            self.send_response(200)
+            if path.endswith('.html'):
+                self.send_header("Content-type", "text/html; charset=utf-8")
+            elif path.endswith('.js'):
+                self.send_header("Content-type", "application/javascript")
+            elif path.endswith('.css'):
+                self.send_header("Content-type", "text/css")
+            else:
+                self.send_header("Content-type", "application/octet-stream")
+            
+            fs = os.fstat(f.fileno())
+            self.send_header("Content-Length", str(fs[6]))
+            self.send_header("Last-Modified", self.date_time_string(fs.st_mtime))
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.end_headers()
+            return f
+        except:
+            f.close()
+            raise
 
-
-if __name__ == "__main__":
-    run_server()
+os.chdir(DIR)
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    print(f"Server at http://localhost:{PORT}")
+    httpd.serve_forever()

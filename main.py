@@ -84,9 +84,12 @@ if __name__ == '__main__':
                 logger.info(f"  web_app_data attribute exists: {update.message.web_app_data}")
                 if update.message.web_app_data:
                     logger.info(f"  *** WEB APP DATA IN STATUS UPDATE HANDLER ***: {update.message.web_app_data.data[:200]}...")
+                    # Call our handler!
+                    from handlers.webapp_handler import handle_webapp_data_wrapper
+                    await handle_webapp_data_wrapper(update, context)
             if hasattr(update.message, 'via_bot'):
                 logger.info(f"  via_bot: {update.message.via_bot}")
-    
+
     application.add_handler(MessageHandler(filters.StatusUpdate.ALL, test_all_status_updates), group=0)  # Test all status updates
     
     # IMPORTANT: Web App handlers must be registered BEFORE other MessageHandlers

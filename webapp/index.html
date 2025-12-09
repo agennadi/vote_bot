@@ -166,7 +166,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗳️ Create Poll</h1>
+        <h1>🗳️ Create Poll [v1765310602]</h1>
+        <p id="test-message" style="background: red; color: white; padding: 20px; font-size: 24px; text-align: center;">TEST: If you see this, the HTML loaded correctly!</p>
         
         <form id="pollForm">
             <div class="form-group">
@@ -216,24 +217,36 @@
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        console.log('Telegram WebApp initialized:', tg);
-        console.log('WebApp version:', tg.version);
-        console.log('WebApp platform:', tg.platform);
-        
-        tg.ready();
-        tg.expand();
-        
-        // Log when Web App is ready
-        tg.onEvent('viewportChanged', () => {
-            console.log('WebApp viewport changed');
-        });
-        
-        // Check if Web App is properly initialized
-        if (!tg || !tg.sendData) {
-            console.error('Telegram WebApp not properly initialized!');
-            document.body.innerHTML = '<div style="padding: 20px; text-align: center;"><h2>Error</h2><p>Telegram WebApp not available. Please open this from Telegram.</p></div>';
+        // Initialize with error handling to prevent blank page
+        let tg;
+        try {
+            if (window.Telegram && window.Telegram.WebApp) {
+                tg = window.Telegram.WebApp;
+                console.log('Telegram WebApp initialized:', tg);
+                console.log('WebApp version:', tg.version);
+                console.log('WebApp platform:', tg.platform);
+                
+                tg.ready();
+                tg.expand();
+                
+                // Log when Web App is ready
+                tg.onEvent('viewportChanged', () => {
+                    console.log('WebApp viewport changed');
+                });
+            } else {
+                console.warn('Telegram WebApp not available');
+            }
+        } catch (error) {
+            console.error('Error initializing Telegram WebApp:', error);
         }
+        
+        // Read chat_id from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetChatId = urlParams.get('chat_id');
+        console.log('Target chat_id from URL:', targetChatId);
+        
+        // Ensure form is visible even if Telegram fails to load
+        console.log('Ensuring form is visible...');
 
         let optionCount = 2;
 
@@ -300,12 +313,12 @@
             }
 
             if (!isValid) {
-                tg.showAlert('Please fill in all required fields');
+                if (tg && tg.showAlert) { tg.showAlert('Please fill in all required fields'); } else { alert('Please fill in all required fields'); }
                 return;
             }
 
             if (limit !== null && limit < 1) {
-                tg.showAlert('Vote limit must be at least 1');
+                if (tg && tg.showAlert) { tg.showAlert('Vote limit must be at least 1'); } else { alert('Vote limit must be at least 1'); }
                 return;
             }
 
@@ -319,7 +332,8 @@
                 options: options,
                 anonymous: anonymous,
                 forwarding: forwarding,
-                limit: limit
+                limit: limit,
+                chat_id: targetChatId ? parseInt(targetChatId) : null
             };
 
             // Send data back to bot

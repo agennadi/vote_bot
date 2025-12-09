@@ -18,14 +18,21 @@ class PollService:
     def __init__(self, poll_repository: PollRepository):
         self.poll_repository = poll_repository
 
-    async def send_poll(self, poll: Poll, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def send_poll(self, poll: Poll, update: Update, context: ContextTypes.DEFAULT_TYPE, target_chat_id: int = None) -> None:
         """Sends a new poll"""
 
-        # If there's a message (from inline query trigger), reply to it for context
-        reply_to_message_id = update.message.message_id if update.message else None
+        # Determine the chat to send to
+        chat_id = target_chat_id if target_chat_id else update.effective_chat.id
+        
+        # Only reply to message if sending to the same chat where the message was sent
+        # Don't reply if sending to a different chat (cross-chat scenario)
+        reply_to_message_id = None
+        if not target_chat_id and update.message:
+            # Same chat - can reply to message
+            reply_to_message_id = update.message.message_id
 
         message = await context.bot.send_poll(
-            chat_id=update.effective_chat.id,
+            chat_id=chat_id,
             question=poll.question,
             options=poll.options,
             is_anonymous=poll.anonimity,
