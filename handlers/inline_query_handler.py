@@ -1,5 +1,6 @@
 import logging
-from telegram import Update, InlineQueryResultArticle, InputTextMessageContent
+import os
+from telegram import Update, InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from models.poll import Poll
@@ -30,6 +31,27 @@ async def show_poll_form(update: Update, context: ContextTypes.DEFAULT_TYPE, que
 
     logger.info(f"Showing poll form for query: '{query}'")
     results = []
+
+    # Get Web App URL from environment or use default
+    webapp_url = os.getenv("WEBAPP_URL", "https://your-domain.com/webapp/index.html")
+    
+    # Always show Web App form option first (most user-friendly)
+    webapp_button = InlineKeyboardButton(
+        text="📝 Create Poll with Form",
+        web_app=WebAppInfo(url=webapp_url)
+    )
+    
+    results.append(
+        InlineQueryResultArticle(
+            id="webapp_create_poll",
+            title="📝 Create Poll with Form",
+            description="Fill out a user-friendly form to create your poll",
+            input_message_content=InputTextMessageContent(
+                message_text="Creating poll..."
+            ),
+            reply_markup=InlineKeyboardMarkup([[webapp_button]])
+        )
+    )
 
     # If user has typed something, try to parse it and show preview
     if query.strip():

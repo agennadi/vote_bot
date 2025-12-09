@@ -11,6 +11,7 @@ from handlers.conversation_handler import conv_handler
 from handlers.non_anonymous_poll_answer_handler import handle_non_anonymous_poll_answer
 from handlers.anonymous_poll_update_handler import handle_anonymous_poll_update
 from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result, handle_poll_creation_message
+from handlers.webapp_handler import webapp_handler
 from database.poll_repository import PollRepository
 from services.poll_service import PollService
 from utils.translations import translator
@@ -67,6 +68,7 @@ if __name__ == '__main__':
         r'^CREATEPOLL:'), handle_poll_creation_message))  # Auto-create polls from inline
     application.add_handler(inline_query_handler)
     application.add_handler(chosen_inline_result_handler)
+    application.add_handler(webapp_handler)  # Handle Web App form submissions
     application.add_handler(cancel_handler)
     application.add_handler(help_handler)
     application.add_handler(PollAnswerHandler(
