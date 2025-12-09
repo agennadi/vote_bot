@@ -48,11 +48,11 @@ async def handle_chosen_inline_result(update: Update, context: ContextTypes.DEFA
     logger.info(f"Chosen result details: from_user={result.from_user.id if result.from_user else None}, query={result.query}, inline_message_id={result.inline_message_id}")
     
     if result.result_id == "webapp_create_poll":
-        logger.info("Web App form result selected - WEBAPPFORM: message will be handled by handle_poll_creation_message")
+        logger.info("Web App form result selected - trigger message will be handled by handle_poll_creation_message")
 
 
 async def handle_poll_creation_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Detect and handle CREATEPOLL: messages and WEBAPPFORM: markers."""
+    """Detect and handle Web App form trigger messages."""
     
     message_text = update.message.text
     logger.info(f"handle_poll_creation_message called with text: '{message_text}' from chat {update.effective_chat.id}")
@@ -62,8 +62,8 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
         return
     
     # Handle Web App form trigger
-    if message_text.strip() == "WEBAPPFORM:" or message_text.strip().startswith("WEBAPPFORM:") or "Check your private chat with the bot" in message_text:
-        logger.info(f"WEBAPPFORM detected in message: '{message_text}'")
+    if "Check your private chat with the bot" in message_text:
+        logger.info(f"Web App form trigger detected in message: '{message_text}'")
         
         # Use KeyboardButton with WebApp (tg.sendData works!)
         webapp_url = os.getenv("WEBAPP_URL", "")
@@ -104,14 +104,14 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
                 )
                 logger.info(f"Sent Web App button to private chat for group {chat_id}")
                 
-                # Delete the WEBAPPFORM trigger message
+                # Delete the trigger message
                 try:
                     await update.message.delete()
-                    logger.debug("Successfully deleted WEBAPPFORM trigger message")
+                    logger.debug("Successfully deleted trigger message")
                 except BadRequest as e:
-                    logger.debug(f"Cannot delete WEBAPPFORM message (may not have permission): {e}")
+                    logger.debug(f"Cannot delete trigger message (may not have permission): {e}")
                 except Exception as e:
-                    logger.debug(f"Error deleting WEBAPPFORM message: {e}")
+                    logger.debug(f"Error deleting trigger message: {e}")
             except Exception as e:
                 logger.error(f"Could not send to private chat: {e}", exc_info=True)
         else:
@@ -129,23 +129,16 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
                 )
                 logger.info(f"Sent Web App button in private chat")
                 
-                # Delete the WEBAPPFORM trigger message
+                # Delete the trigger message
                 try:
                     await update.message.delete()
-                    logger.debug("Successfully deleted WEBAPPFORM trigger message")
+                    logger.debug("Successfully deleted trigger message")
                 except BadRequest as e:
-                    logger.debug(f"Cannot delete WEBAPPFORM message: {e}")
+                    logger.debug(f"Cannot delete trigger message: {e}")
                 except Exception as e:
-                    logger.debug(f"Error deleting WEBAPPFORM message: {e}")
+                    logger.debug(f"Error deleting trigger message: {e}")
             except Exception as e:
                 logger.error(f"Could not send Web App button: {e}", exc_info=True)
         
         return
     
-    # Handle CREATEPOLL: messages (existing implementation)
-    if not message_text.startswith("CREATEPOLL:"):
-        return
-    
-    # Parse CREATEPOLL: commands (wizard, quick, etc.)
-    # ... rest of existing implementation ...
-    logger.info(f"CREATEPOLL detected but not implemented yet: {message_text}")

@@ -61,10 +61,10 @@ if __name__ == '__main__':
 
     application.add_handler(webapp_handler_status, group=0)  # Handle Web App via StatusUpdate filter  # Handle Web App via custom filter
     
-    # Handler for WEBAPPFORM: messages - must be before ConversationHandler
+    # Handler for Web App form trigger messages - must be before ConversationHandler
 
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(
-        r'^(CREATEPOLL:|WEBAPPFORM:|📝 Check your private chat)'), handle_poll_creation_message), group=1)  # Auto-create polls from inline or Web App form trigger - BEFORE conv_handler
+        r'^📝 Check your private chat'), handle_poll_creation_message), group=1)  # Handle Web App form trigger from inline queries - BEFORE conv_handler
     
     application.add_handler(conv_handler)  # Handles /start in private chats
     application.add_handler(CommandHandler(
