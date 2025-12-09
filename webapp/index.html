@@ -217,8 +217,23 @@
 
     <script>
         const tg = window.Telegram.WebApp;
+        console.log('Telegram WebApp initialized:', tg);
+        console.log('WebApp version:', tg.version);
+        console.log('WebApp platform:', tg.platform);
+        
         tg.ready();
         tg.expand();
+        
+        // Log when Web App is ready
+        tg.onEvent('viewportChanged', () => {
+            console.log('WebApp viewport changed');
+        });
+        
+        // Check if Web App is properly initialized
+        if (!tg || !tg.sendData) {
+            console.error('Telegram WebApp not properly initialized!');
+            document.body.innerHTML = '<div style="padding: 20px; text-align: center;"><h2>Error</h2><p>Telegram WebApp not available. Please open this from Telegram.</p></div>';
+        }
 
         let optionCount = 2;
 
@@ -308,7 +323,57 @@
             };
 
             // Send data back to bot
-            tg.sendData(JSON.stringify(pollData));
+            console.log('=== SUBMITTING FORM ===');
+            console.log('Poll data:', pollData);
+            console.log('Telegram WebApp object:', tg);
+            console.log('sendData function exists:', typeof tg.sendData === 'function');
+            console.log('close function exists:', typeof tg.close === 'function');
+            console.log('WebApp initData:', tg.initData);
+            console.log('WebApp initDataUnsafe:', tg.initDataUnsafe);
+            
+            try {
+                // Verify Web App is properly initialized
+                if (!tg || typeof tg.sendData !== 'function') {
+                    const errorMsg = 'Telegram WebApp not properly initialized. sendData function not available.';
+                    console.error(errorMsg);
+                    tg.showAlert(errorMsg);
+                    document.getElementById('pollForm').style.display = 'block';
+                    document.getElementById('loading').classList.remove('show');
+                    return;
+                }
+                
+                // Send data
+                console.log('Calling tg.sendData()...');
+                tg.sendData(JSON.stringify(pollData));
+                console.log('tg.sendData() called successfully');
+                
+                // Close the Web App after a short delay
+                setTimeout(() => {
+                    console.log('Attempting to close Web App...');
+                    try {
+                        if (typeof tg.close === 'function') {
+                            tg.close();
+                            console.log('tg.close() called successfully');
+                        } else {
+                            console.error('tg.close is not a function');
+                            tg.showAlert('Warning: Cannot close Web App automatically');
+                        }
+                    } catch (closeError) {
+                        console.error('Error closing Web App:', closeError);
+                        tg.showAlert('Warning: Error closing Web App: ' + closeError.message);
+                    }
+                }, 200);
+                
+            } catch (error) {
+                console.error('=== ERROR IN FORM SUBMISSION ===');
+                console.error('Error type:', error.constructor.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                tg.showAlert('Error sending poll data: ' + error.message);
+                // Show form again
+                document.getElementById('pollForm').style.display = 'block';
+                document.getElementById('loading').classList.remove('show');
+            }
         });
 
         // Initialize

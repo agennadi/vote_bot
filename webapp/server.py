@@ -17,11 +17,20 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(DIRECTORY), **kwargs)
     
+    def guess_type(self, path):
+        """Ensure correct Content-Type for HTML files."""
+        mimetype, encoding = super().guess_type(path)
+        if path.endswith('.html'):
+            return 'text/html', encoding
+        return mimetype, encoding
+    
     def end_headers(self):
         # Add CORS headers for development
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        # Add security headers for Telegram Web App
+        self.send_header('X-Content-Type-Options', 'nosniff')
         super().end_headers()
 
 
@@ -45,5 +54,3 @@ def run_server():
 
 if __name__ == "__main__":
     run_server()
-
-

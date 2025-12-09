@@ -1,6 +1,6 @@
 import logging
 import os
-from telegram import Update, InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from models.poll import Poll
@@ -21,6 +21,12 @@ async def handle_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.inline_query.query
     logger.info(
         f"Inline query received: '{query}' from user {update.effective_user.id}")
+    
+    # Store chat info for Web App button (if available)
+    # Note: inline_query doesn't have chat_id, but we can try to get it from the query
+    if update.inline_query.chat_type:
+        # Store user_id for later use
+        context.user_data['last_inline_user_id'] = update.effective_user.id
 
     # Always show the form interface - users can type their poll data or use examples
     await show_poll_form(update, context, query)
@@ -32,24 +38,20 @@ async def show_poll_form(update: Update, context: ContextTypes.DEFAULT_TYPE, que
     logger.info(f"Showing poll form for query: '{query}'")
     results = []
 
-    # Get Web App URL from environment or use default
+    # Always show Web App form option first (most user-friendly)
+    # Note: Web App buttons can't be in inline query results, so we use a special marker
+    # that will trigger sending a message with the Web App button
     webapp_url = os.getenv("WEBAPP_URL", "https://your-domain.com/webapp/index.html")
     
-    # Always show Web App form option first (most user-friendly)
-    webapp_button = InlineKeyboardButton(
-        text="📝 Create Poll with Form",
-        web_app=WebAppInfo(url=webapp_url)
-    )
-    
+    # Use a special marker that we can detect in handle_poll_creation_message
     results.append(
         InlineQueryResultArticle(
             id="webapp_create_poll",
             title="📝 Create Poll with Form",
             description="Fill out a user-friendly form to create your poll",
             input_message_content=InputTextMessageContent(
-                message_text="Creating poll..."
-            ),
-            reply_markup=InlineKeyboardMarkup([[webapp_button]])
+                message_text="WEBAPPFORM:"  # Special marker to trigger Web App button
+            )
         )
     )
 
@@ -175,16 +177,113 @@ def parse_poll_query(query: str) -> dict:
 
 async def handle_chosen_inline_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle when user selects an inline query result."""
+    logger.info("=== handle_chosen_inline_result CALLED ===")
     chosen_result = update.chosen_inline_result
     logger.info(f"Chosen inline result: {chosen_result.result_id}")
+    try:
+        logger.info(f"Chosen result details: from_user={chosen_result.from_user.id}, query={chosen_result.query}, inline_message_id={chosen_result.inline_message_id}")
+    except Exception as e:
+        logger.warning(f"Could not log chosen result details: {e}")
+    
+    # If Web App form was selected, send the Web App button directly
+    # We can't reliably get chat_id from chosen_inline_result, so we'll send it when the message arrives
+    # But as a fallback, try to send it to the user's private chat
+    if chosen_result.result_id == "webapp_create_poll":
+        logger.info("Web App form result selected - sending Web App button")
+        webapp_url = os.getenv("WEBAPP_URL", "https://your-domain.com/webapp/index.html")
+        
+        if webapp_url == "https://your-domain.com/webapp/index.html":
+            logger.warning("Web App URL not configured")
+            return
+        
+        # IMPORTANT: Use ReplyKeyboardButton (not InlineKeyboardButton) because
+        # tg.sendData() only works when Web App is launched from a Keyboard button
+        webapp_button = KeyboardButton(
+            text="📝 Open Poll Creation Form",
+            web_app=WebAppInfo(url=webapp_url)
+        )
+        keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=True)
+        form_message = "📝 Click the button below to open the poll creation form!"
+        
+        # Try to send to user's private chat (works for private chats)
+        # For group chats, handle_poll_creation_message will handle it when WEBAPPFORM: arrives
+        try:
+            chat_id = chosen_result.from_user.id
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=form_message,
+                reply_markup=keyboard
+            )
+            logger.info(f"Sent Web App button (ReplyKeyboard) to chat {chat_id}")
+        except Exception as e:
+            logger.warning(f"Could not send Web App button directly: {e}. Will wait for WEBAPPFORM: message.")
 
 
 async def handle_poll_creation_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Detect and handle CREATEPOLL: messages to automatically create polls."""
+    """Detect and handle CREATEPOLL: messages and WEBAPPFORM: markers."""
 
     message_text = update.message.text
+    logger.info(f"handle_poll_creation_message called with text: '{message_text}' from chat {update.effective_chat.id}")
 
-    if not message_text or not message_text.startswith("CREATEPOLL:"):
+    if not message_text:
+        logger.debug("No message text, returning")
+        return
+    
+    # Handle Web App form trigger
+    if message_text.strip() == "WEBAPPFORM:" or message_text.strip().startswith("WEBAPPFORM:"):
+        logger.info(f"WEBAPPFORM detected in message: '{message_text}'")
+        webapp_url = os.getenv("WEBAPP_URL", "https://your-domain.com/webapp/index.html")
+        logger.info(f"Web App URL from env: {webapp_url}")
+        
+        # Check if URL is configured
+        if webapp_url == "https://your-domain.com/webapp/index.html":
+            logger.warning("Web App URL not configured")
+            user = update.effective_user
+            error_msg = translator.translate("error_occurred", user)
+            await update.message.reply_text(
+                f"{error_msg}\n\n⚠️ Web App URL not configured. Please set WEBAPP_URL in your environment variables."
+            )
+            # Try to delete the trigger message
+            try:
+                await update.message.delete()
+            except:
+                pass
+            return
+        
+        # IMPORTANT: Use ReplyKeyboardButton (not InlineKeyboardButton) because
+        # tg.sendData() only works when Web App is launched from a Keyboard button
+        webapp_button = KeyboardButton(
+            text="📝 Open Poll Creation Form",
+            web_app=WebAppInfo(url=webapp_url)
+        )
+        
+        keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=True)
+        form_message = "📝 Click the button below to open the poll creation form!"
+        
+        # Send the Web App button as a reply to the WEBAPPFORM message
+        # This ensures it's in the correct chat (group or private)
+        try:
+            sent_message = await update.message.reply_text(
+                text=form_message,
+                reply_markup=keyboard
+            )
+            logger.info(f"Sent Web App button message as reply in chat {update.effective_chat.id}")
+            
+            # Try to delete the WEBAPPFORM trigger message
+            try:
+                await update.message.delete()
+                logger.debug("Successfully deleted WEBAPPFORM trigger message")
+            except BadRequest as e:
+                logger.debug(f"Cannot delete WEBAPPFORM message (may not have permission): {e}")
+            except Exception as e:
+                logger.debug(f"Error deleting WEBAPPFORM message: {e}")
+        except Exception as e:
+            logger.error(f"Could not send Web App button message: {e}", exc_info=True)
+        
+        return
+    
+    # Handle CREATEPOLL: messages
+    if not message_text.startswith("CREATEPOLL:"):
         return
 
     # Extract the poll query
