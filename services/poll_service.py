@@ -37,7 +37,7 @@ class PollService:
             options=poll.options,
             is_anonymous=poll.anonimity,
             allows_multiple_answers=True,
-            protect_content=poll.forwarding,
+            protect_content=(not poll.forwarding),  # Invert: True=allow forwarding, False=protect
             reply_to_message_id=reply_to_message_id
         )
 
