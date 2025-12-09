@@ -26,5 +26,5 @@
     "poll_options_continue": "Send me another option or type /done if finished.",
     "nothing_to_cancel": "There is nothing to cancel yet. Use /start to create a new poll.",
     "unknown_command": "Sorry, I didn't understand that command.",
-    "help_text": "This bot creates customizable polls. You can set poll visibility, duration, and vote limits.\n\n- Use /start to create a poll.\n\n- If you want to disable poll forwarding, add the bot to the group of people who are allowed to vote and create the poll inside the group.\n\n- Send /polls to manage your existing polls."
+    "help_text": "🤖 **Poll Bot Commands**\n\n/start - Create a poll (conversation mode)\n/form - Create a poll (form mode) 📝\n/help - Show this message\n/cancel - Cancel current operation\n\n**Or use inline mode:**\nType @vote_the_bot in any chat!"
 }

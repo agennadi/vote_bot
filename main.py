@@ -12,6 +12,7 @@ from handlers.non_anonymous_poll_answer_handler import handle_non_anonymous_poll
 from handlers.anonymous_poll_update_handler import handle_anonymous_poll_update
 from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result, handle_poll_creation_message
 from handlers.webapp_handler import webapp_handler_status
+from handlers.form_handler import form_command
 from database.poll_repository import PollRepository
 from services.poll_service import PollService
 from utils.translations import translator
@@ -67,6 +68,7 @@ if __name__ == '__main__':
         r'^📝 Check your private chat'), handle_poll_creation_message), group=1)  # Handle Web App form trigger from inline queries - BEFORE conv_handler
     
     application.add_handler(conv_handler)  # Handles /start in private chats
+    application.add_handler(CommandHandler("form", form_command))
     application.add_handler(CommandHandler(
         # Handles /start in groups
         "start", start_command_group, filters=filters.ChatType.GROUPS))
