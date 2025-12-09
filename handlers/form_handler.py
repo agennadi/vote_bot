@@ -36,7 +36,7 @@ async def form_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # For group chats: send button to private chat with group chat_id in URL
         webapp_url_with_chat = f"{webapp_url}?{urlencode({'chat_id': chat_id})}"
         webapp_button = KeyboardButton(
-            text="📝 Open Poll Creation Form",
+            text=translator.translate("webapp_button_title", update.effective_user),
             web_app=WebAppInfo(url=webapp_url_with_chat)
         )
         keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=False)
@@ -45,14 +45,14 @@ async def form_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Send to user's private chat
             await context.bot.send_message(
                 chat_id=update.effective_user.id,
-                text="👇 **CLICK THE BUTTON BELOW** 👇\n\n📝 Open the form to create your poll.\n\n⚠️ Don't type anything - just tap the button!",
+                text=translator.translate("webapp_click_button_instructions", update.effective_user),
                 reply_markup=keyboard
             )
             logger.info(f"Sent Web App button to private chat for group {chat_id} via /form")
             
             # Confirm in the group
             await update.message.reply_text(
-                "✅ Check your private chat with me to open the poll creation form!"
+                translator.translate("webapp_check_private_chat", update.effective_user)
             )
             
         except BadRequest as e:
@@ -70,7 +70,7 @@ async def form_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Private chat - send button directly
         webapp_button = KeyboardButton(
-            text="📝 Open Poll Creation Form",
+            text=translator.translate("webapp_button_title", update.effective_user),
             web_app=WebAppInfo(url=webapp_url)
         )
         keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=False)

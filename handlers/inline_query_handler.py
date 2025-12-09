@@ -91,7 +91,7 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
             from urllib.parse import urlencode
             webapp_url_with_chat = f"{webapp_url}?{urlencode({'chat_id': chat_id})}"
             webapp_button = KeyboardButton(
-                text="📝 Open Poll Creation Form",
+                text=translator.translate("webapp_button_title", update.effective_user),
                 web_app=WebAppInfo(url=webapp_url_with_chat)
             )
             keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=False)
@@ -99,7 +99,7 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
             try:
                 await context.bot.send_message(
                     chat_id=update.effective_user.id,
-                    text="👇 **CLICK THE BUTTON BELOW** 👇\n\n📝 Open the form to create your poll.\n\n⚠️ Don't type anything - just tap the button!",
+                    text=translator.translate("webapp_click_button_instructions", update.effective_user),
                     reply_markup=keyboard
                 )
                 logger.info(f"Sent Web App button to private chat for group {chat_id}")
@@ -117,14 +117,14 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
         else:
             # Private chat - send button directly
             webapp_button = KeyboardButton(
-                text="📝 Open Poll Creation Form",
+                text=translator.translate("webapp_button_title", update.effective_user),
                 web_app=WebAppInfo(url=webapp_url)
             )
             keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=False)
             
             try:
                 await update.message.reply_text(
-                    "👇 **CLICK THE BUTTON BELOW** 👇\n\n📝 Open the form to create your poll.\n\n⚠️ Don't type anything - just tap the button!",
+                    translator.translate("webapp_click_button_instructions", update.effective_user),
                     reply_markup=keyboard
                 )
                 logger.info(f"Sent Web App button in private chat")

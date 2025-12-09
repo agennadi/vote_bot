@@ -31,19 +31,11 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 async def start_command_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command in group chats - show inline query instructions."""
-    logger.info(f"Group chat detected - showing inline query instructions")
-
-    # Get user's language and translate the message
-    user = update.effective_user
-    bot_username = context.bot.username
-    message = translator.translate(
-        "start_group", user, bot_username=bot_username)
-
-    await update.message.reply_text(
-        message,
-        parse_mode='Markdown'
-    )
+    """Handle /start command in group chats - delegate to /form command."""
+    logger.info(f"/start in group - delegating to /form command")
+    
+    # Simply call the form_command
+    await form_command(update, context)
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(telegram_token).build()
