@@ -27,3 +27,4 @@ async def handle_anonymous_poll_update(update: Update, context: ContextTypes.DEF
     # Let the service handle everything
     await poll_service.handle_anonymous_poll_update(poll, context)
 
+
