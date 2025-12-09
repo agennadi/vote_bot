@@ -79,7 +79,7 @@ async def handle_chosen_inline_result(update: Update, context: ContextTypes.DEFA
     """Handle when user selects an inline result"""
     result = update.chosen_inline_result
     
-    logger.info("=== handle_chosen_inline_result CALLED ===")
+    logger.info("Handling chosen inline result")
     logger.info(f"Chosen inline result: {result.result_id}")
     logger.info(f"Chosen result details: from_user={result.from_user.id if result.from_user else None}, query={result.query}, inline_message_id={result.inline_message_id}")
     

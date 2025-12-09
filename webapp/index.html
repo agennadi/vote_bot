@@ -337,13 +337,7 @@
             };
 
             // Send data back to bot
-            console.log('=== SUBMITTING FORM ===');
-            console.log('Poll data:', pollData);
-            console.log('Telegram WebApp object:', tg);
-            console.log('sendData function exists:', typeof tg.sendData === 'function');
-            console.log('close function exists:', typeof tg.close === 'function');
-            console.log('WebApp initData:', tg.initData);
-            console.log('WebApp initDataUnsafe:', tg.initDataUnsafe);
+            console.log('Submitting poll:', pollData);
             
             try {
                 // Verify Web App is properly initialized
@@ -357,17 +351,17 @@
                 }
                 
                 // Send data
-                console.log('Calling tg.sendData()...');
+                
                 tg.sendData(JSON.stringify(pollData));
-                console.log('tg.sendData() called successfully');
+                
                 
                 // Close the Web App after a short delay
                 setTimeout(() => {
-                    console.log('Attempting to close Web App...');
+                    
                     try {
                         if (typeof tg.close === 'function') {
                             tg.close();
-                            console.log('tg.close() called successfully');
+                            
                         } else {
                             console.error('tg.close is not a function');
                             tg.showAlert('Warning: Cannot close Web App automatically');
