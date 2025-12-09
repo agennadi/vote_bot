@@ -32,42 +32,6 @@ async def show_poll_form(update: Update, context: ContextTypes.DEFAULT_TYPE, que
             description="Fill out a form to create your poll",
             input_message_content=InputTextMessageContent("📝 Check your private chat with the bot to fill out the poll form. The poll will appear in this group!"),
             thumbnail_url="https://img.icons8.com/fluency/48/000000/create-new.png"
-        ),
-        InlineQueryResultArticle(
-            id="create_poll_wizard",
-            title="✍️ Create Poll (Step-by-Step)",
-            description="Create a poll through guided conversation",
-            input_message_content=InputTextMessageContent(
-                f"CREATEPOLL:{query}" if query else "CREATEPOLL:"
-            ),
-            thumbnail_url="https://img.icons8.com/fluency/48/000000/add-list.png"
-        ),
-        InlineQueryResultArticle(
-            id="poll_quick",
-            title="⚡ Quick Poll",
-            description="Create a simple yes/no poll instantly",
-            input_message_content=InputTextMessageContent(
-                f"CREATEPOLL:quick:{query}" if query else "CREATEPOLL:quick:"
-            ),
-            thumbnail_url="https://img.icons8.com/fluency/48/000000/lightning-bolt.png"
-        ),
-        InlineQueryResultArticle(
-            id="poll_multiple",
-            title="☑️ Multiple Choice Poll",
-            description="Poll with multiple options (2+ answers allowed)",
-            input_message_content=InputTextMessageContent(
-                f"CREATEPOLL:multi:{query}" if query else "CREATEPOLL:multi:"
-            ),
-            thumbnail_url="https://img.icons8.com/fluency/48/000000/checked-checkbox.png"
-        ),
-        InlineQueryResultArticle(
-            id="poll_quiz",
-            title="🎯 Quiz Mode",
-            description="Create a poll with correct answer",
-            input_message_content=InputTextMessageContent(
-                f"CREATEPOLL:quiz:{query}" if query else "CREATEPOLL:quiz:"
-            ),
-            thumbnail_url="https://img.icons8.com/fluency/48/000000/trophy.png"
         )
     ]
     
@@ -130,12 +94,12 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
                 text="📝 Open Poll Creation Form",
                 web_app=WebAppInfo(url=webapp_url_with_chat)
             )
-            keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=True)
+            keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=False)
             
             try:
                 await context.bot.send_message(
                     chat_id=update.effective_user.id,
-                    text="📝 Click below to create poll in group!",
+                    text="👇 **CLICK THE BUTTON BELOW** 👇\n\n📝 Open the form to create your poll.\n\n⚠️ Don't type anything - just tap the button!",
                     reply_markup=keyboard
                 )
                 logger.info(f"Sent Web App button to private chat for group {chat_id}")
@@ -156,11 +120,11 @@ async def handle_poll_creation_message(update: Update, context: ContextTypes.DEF
                 text="📝 Open Poll Creation Form",
                 web_app=WebAppInfo(url=webapp_url)
             )
-            keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=True)
+            keyboard = ReplyKeyboardMarkup([[webapp_button]], resize_keyboard=True, one_time_keyboard=False)
             
             try:
                 await update.message.reply_text(
-                    "📝 Click below to create poll!",
+                    "👇 **CLICK THE BUTTON BELOW** 👇\n\n📝 Open the form to create your poll.\n\n⚠️ Don't type anything - just tap the button!",
                     reply_markup=keyboard
                 )
                 logger.info(f"Sent Web App button in private chat")
