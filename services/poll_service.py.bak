@@ -41,12 +41,11 @@ class PollService:
             reply_to_message_id=reply_to_message_id
         )
 
-        # Update poll with Telegram ID and message info
+        # Update poll with Telegram ID
         poll.id = message.poll.id
-        poll.message_id = message.message_id
-        poll.chat_id = chat_id
 
         # Extract user info
+        chat_id = update.effective_chat.id
         user_id = update.message.from_user.id
         user = update.message.from_user
 
@@ -57,7 +56,7 @@ class PollService:
                 "question": poll.question,
                 "options": poll.options,
                 "message_id": message.message_id,
-                "chat_id": poll.chat_id,
+                "chat_id": chat_id,
                 "voters_num": 0,
                 "votes": {},
                 "anonimity": poll.anonimity,
@@ -71,7 +70,7 @@ class PollService:
         logger.info("Information about the poll: %s", message.poll)
 
         # Database logic
-        self.poll_repository.create_poll(poll, user_id, poll.chat_id, message.message_id)
+        self.poll_repository.create_poll(poll, user_id, chat_id)
 
         logger.info("Poll %s created and sent successfully", poll.id)
 
@@ -182,8 +181,8 @@ class PollService:
                         "anonimity": poll.anonimity,
                         "forwarding": poll.forwarding,
                         "limit": poll.limit,
-                        "message_id": poll.message_id,
-                        "chat_id": poll.chat_id
+                        "message_id": None,
+                        "chat_id": None
                     }
                 else:
                     logger.error("Poll %s not found", poll_id)
@@ -218,9 +217,9 @@ class PollService:
         self.poll_repository.remove_vote(poll_id, user_id)
 
 
-    async def list_polls_by_user(self, user_id: int) -> list[Poll]:
+    async def list_polls_by_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> list[Poll]:
         """Lists all polls created by a user"""
-        return self.poll_repository.get_polls_by_user(user_id)
+        return self.poll_repository.get_polls_by_user(update.effective_user.id)
 
     async def delete_poll(self, poll: Poll) -> None:
         """Deletes a poll"""

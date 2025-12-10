@@ -26,6 +26,7 @@ def setup_database():
                 poll_id TEXT PRIMARY KEY,
                 user_id INTEGER,
                 chat_id INTEGER,
+                message_id INTEGER,
                 anonimity BOOLEAN NOT NULL,
                 forwarding BOOLEAN NOT NULL,
                 "limit" INTEGER,
@@ -60,7 +61,6 @@ def setup_database():
             """)
 
             conn.commit()
-            
         except sqlite3.DatabaseError as e:
             logger.error("Database initialization error: %s", e)
 

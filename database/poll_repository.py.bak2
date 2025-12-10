@@ -203,7 +203,7 @@ class PollRepository:
             try:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT * FROM polls WHERE user_id = ? ORDER BY expiration_date DESC", (user_id,))
+                    "SELECT * FROM polls WHERE user_id = ? ORDER BY expiration_date DESC", (user_id,)
                 rows = cursor.fetchall()
                 polls = []
                 for row in rows:
@@ -256,7 +256,7 @@ class PollRepository:
     def delete_poll(self, poll_id: str) -> None:
         """Deletes a poll and all related data (cascade delete)"""
         # TODO: add cascade delete for poll_options and votes
-        with sqlite3.connect(self.db) as conn:
+        with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
             try:

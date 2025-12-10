@@ -1,6 +1,6 @@
 import logging
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, PollAnswerHandler, PollHandler, CallbackContext, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, PollAnswerHandler, PollHandler, CallbackContext, InlineQueryHandler, ChosenInlineResultHandler, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 import os
 from dotenv import load_dotenv
 from handlers.error_handler import error_handler
@@ -13,6 +13,7 @@ from handlers.anonymous_poll_update_handler import handle_anonymous_poll_update
 from handlers.inline_query_handler import handle_inline_query, handle_chosen_inline_result, handle_poll_creation_message
 from handlers.webapp_handler import webapp_handler_status
 from handlers.form_handler import form_command
+from handlers.polls_handler import polls_command, handle_poll_action, handle_delete_confirmation
 from database.poll_repository import PollRepository
 from services.poll_service import PollService
 from utils.translations import translator
@@ -61,9 +62,14 @@ if __name__ == '__main__':
     
     application.add_handler(conv_handler)  # Handles /start in private chats
     application.add_handler(CommandHandler("form", form_command))
+    application.add_handler(CommandHandler("polls", polls_command))
     application.add_handler(CommandHandler(
         # Handles /start in groups
         "start", start_command_group, filters=filters.ChatType.GROUPS))
+    
+    # Callback handlers for poll management
+    application.add_handler(CallbackQueryHandler(handle_poll_action, pattern=r'^(close_poll|delete_poll):'))
+    application.add_handler(CallbackQueryHandler(handle_delete_confirmation, pattern=r'^(confirm_delete|cancel_delete)'))
     
     application.add_handler(inline_query_handler)
     application.add_handler(chosen_inline_result_handler)

@@ -25,6 +25,8 @@ class Poll:
     voters_num: int = 0
     votes: dict = field(default_factory=dict)
     closed: bool = False
+    message_id: int = None
+    chat_id: int = None
 
     def get_vote_counts(self) -> dict:
         """
@@ -70,4 +72,6 @@ class Poll:
             "voters_num": self.voters_num,
             "votes": self.votes,
             "closed": self.closed,
+            "message_id": self.message_id,
+            "chat_id": self.chat_id,
         }
